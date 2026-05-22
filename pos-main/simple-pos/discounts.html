@@ -41,6 +41,23 @@
         .rule-type-fixed{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid rgba(59,130,246,.3);}
         .rule-type-bogo{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.3);}
         .type-badge{padding:1px 8px;border-radius:99px;font-size:.6rem;font-weight:800;text-transform:uppercase;}
+        .status-pill{padding:4px 10px;border-radius:999px;font-size:.65rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border:1px solid transparent;}
+        .status-live{background:rgba(16,185,129,.18);border-color:rgba(16,185,129,.35);color:#6ee7b7;}
+        .status-scheduled{background:rgba(59,130,246,.18);border-color:rgba(96,165,250,.32);color:#93c5fd;}
+        .status-expired{background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.2);color:#94a3b8;}
+        .status-paused{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.3);color:#fbbf24;}
+        .metric-card{background:rgba(15,23,42,.55);border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.5rem;min-height:122px;}
+        .metric-label{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;}
+        .metric-value{font-size:1.9rem;line-height:1;font-weight:900;color:#f8fafc;}
+        .metric-note{font-size:.82rem;line-height:1.4;color:#94a3b8;}
+        .insight-card{background:linear-gradient(135deg,rgba(30,41,59,.7),rgba(15,23,42,.72));border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1rem;min-height:148px;}
+        .toolbar-card{background:rgba(15,23,42,.58);border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1rem;}
+        .empty-state-shell{background:linear-gradient(145deg,rgba(30,41,59,.72),rgba(15,23,42,.85));border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1.4rem;}
+        .starter-tile{background:rgba(15,23,42,.56);border:1px solid rgba(255,255,255,.08);border-radius:.95rem;padding:1rem;transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease;}
+        .starter-tile:hover{transform:translateY(-2px);border-color:rgba(96,165,250,.24);box-shadow:0 12px 32px rgba(2,6,23,.22);}
+        .insight-chip{display:inline-flex;align-items:center;gap:.35rem;padding:.38rem .7rem;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:.72rem;font-weight:700;color:#cbd5e1;}
+        .rule-meta-chip{display:inline-flex;align-items:center;gap:.35rem;padding:.36rem .72rem;border-radius:999px;background:rgba(15,23,42,.72);border:1px solid rgba(255,255,255,.08);font-size:.72rem;font-weight:700;color:#cbd5e1;}
+        .empty-icon-wrap{width:3.25rem;height:3.25rem;border-radius:1rem;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.25);display:flex;align-items:center;justify-content:center;}
 
         /* Shimmer loading */
         .shimmer{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.05) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
@@ -68,7 +85,7 @@
     <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6">
 
         <!-- Left: Discount Rules -->
-        <div>
+        <div class="space-y-5">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-lg font-bold flex items-center gap-2">
                     <span class="material-symbols-outlined text-primary">rule</span> Discount Rules
@@ -77,6 +94,77 @@
                     <span class="material-symbols-outlined text-sm">add</span> New Rule
                 </button>
             </div>
+            <section class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4" id="discountOverview">
+                <div class="metric-card">
+                    <div class="flex items-center justify-between">
+                        <span class="metric-label">Live Campaigns</span>
+                        <span class="material-symbols-outlined text-emerald-300 text-xl">campaign</span>
+                    </div>
+                    <div class="metric-value" id="metricLiveRules">0</div>
+                    <p class="metric-note" id="metricLiveNote">No promotions are live right now.</p>
+                </div>
+                <div class="metric-card">
+                    <div class="flex items-center justify-between">
+                        <span class="metric-label">Rule Inventory</span>
+                        <span class="material-symbols-outlined text-blue-300 text-xl">inventory_2</span>
+                    </div>
+                    <div class="metric-value" id="metricTotalRules">0</div>
+                    <p class="metric-note" id="metricTotalNote">Build percentage, fixed, and BOGO offers here.</p>
+                </div>
+                <div class="metric-card">
+                    <div class="flex items-center justify-between">
+                        <span class="metric-label">Margin Guard</span>
+                        <span class="material-symbols-outlined text-amber-300 text-xl">shield</span>
+                    </div>
+                    <div class="metric-value" id="metricThresholdRules">0</div>
+                    <p class="metric-note" id="metricThresholdNote">Threshold rules protect margin on larger baskets.</p>
+                </div>
+                <div class="metric-card">
+                    <div class="flex items-center justify-between">
+                        <span class="metric-label">Coverage</span>
+                        <span class="material-symbols-outlined text-fuchsia-300 text-xl">category</span>
+                    </div>
+                    <div class="metric-value" id="metricCoverage">0</div>
+                    <p class="metric-note" id="metricCoverageNote">Categories currently covered by rule targeting.</p>
+                </div>
+            </section>
+            <section class="toolbar-card">
+                <div class="grid grid-cols-1 lg:grid-cols-[1.2fr_.7fr_.7fr_auto] gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Search Rules</label>
+                        <input aria-label="Input field" type="text" id="ruleSearch" class="input-field text-sm" placeholder="Search by rule name, category, or notes" />
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Status</label>
+                        <select aria-label="Select field" id="ruleFilterStatus" class="input-field text-sm" style="color-scheme:dark;">
+                            <option value="all">All Rules</option>
+                            <option value="live">Live Now</option>
+                            <option value="scheduled">Scheduled</option>
+                            <option value="paused">Paused</option>
+                            <option value="threshold">Has Min Purchase</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Type</label>
+                        <select aria-label="Select field" id="ruleFilterType" class="input-field text-sm" style="color-scheme:dark;">
+                            <option value="all">All Types</option>
+                            <option value="percentage">Percentage</option>
+                            <option value="fixed">Fixed Amount</option>
+                            <option value="bogo">BOGO</option>
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button onclick="clearRuleFilters()" class="w-full lg:w-auto bg-slate-800 hover:bg-slate-700 text-white px-4 py-3 rounded-xl font-semibold text-sm border border-slate-700 transition-all">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <section id="ruleInsights" class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                <div class="insight-card shimmer"></div>
+                <div class="insight-card shimmer"></div>
+                <div class="insight-card shimmer"></div>
+            </section>
             <div id="rulesContainer" class="space-y-3">
                 <div class="shimmer rounded-xl h-24"></div>
                 <div class="shimmer rounded-xl h-24"></div>
@@ -96,14 +184,21 @@
                     </div>
                 </div>
 
-                <!-- API Key Setup -->
-                <div id="apiKeySection" class="mb-4">
-                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Gemini API Key</label>
-                    <div class="flex gap-2">
-                        <input aria-label="Input field"  type="password" id="geminiApiKey" class="input-field text-sm" placeholder="AIzaSy..." />
-                        <button onclick="saveApiKey()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap">Save</button>
+                <div class="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+                    <div class="flex items-center gap-2 text-emerald-300 font-bold text-sm">
+                        <span class="material-symbols-outlined text-base">verified</span>
+                        Using backend Gemini configuration
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">Get a free key at <a href="https://aistudio.google.com" target="_blank" class="text-emerald-400 hover:underline">aistudio.google.com</a></p>
+                    <p class="text-xs text-slate-300 mt-2">
+                        AI discount suggestions now use the Gemini API key configured on the POS server. No browser API key is required here.
+                    </p>
+                </div>
+                <div id="advisorRuleSummary" class="flex flex-wrap gap-2 mb-4">
+                    <span class="insight-chip"><span class="material-symbols-outlined text-[14px] text-emerald-300">verified</span> Backend ready</span>
+                    <span class="insight-chip"><span class="material-symbols-outlined text-[14px] text-blue-300">stacked_bar_chart</span> Building promotion mix</span>
+                </div>
+                <div id="advisorOpportunity" class="rounded-xl border border-indigo-400/20 bg-slate-950/20 px-4 py-3 mb-4 text-sm text-slate-300 leading-relaxed">
+                    No active campaigns yet. Use a starter campaign or let the advisor suggest a safe first promotion.
                 </div>
 
                 <div class="mb-4">
@@ -218,6 +313,6 @@
 </div>
 
 <script src="database.js"></script>
-<script src="discounts.js"></script>
+<script src="discounts.js?v=20260522f"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 @echo off
-start "" "%~dp0index.html"
+setlocal
+wscript.exe "%~dp0FashionShaa_POS.vbs"
 
 /* placeholder aria-label */

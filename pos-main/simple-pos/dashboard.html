@@ -70,6 +70,9 @@
             <button type="button" data-page="employees.html" class="sidebar-link text-left w-full bg-transparent border-0">
                 <span class="material-symbols-outlined text-cyan-400">badge</span> Employees & Access
             </button>
+            <button type="button" data-page="sync.html" data-requires-role="admin" class="sidebar-link text-left w-full bg-transparent border-0 hidden">
+                <span class="material-symbols-outlined text-emerald-300">sync_alt</span> Data Sync
+            </button>
 
             <p class="px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">CRM & Marketing</p>
             <button type="button" data-page="customers.html" class="sidebar-link text-left w-full bg-transparent border-0">
@@ -94,11 +97,30 @@
 
     <!-- Main Content Frame -->
     <main id="content-wrapper">
-        <iframe id="content-frame" src="analytics.html?v=20260522c" onload="onFrameLoad(this)"></iframe>
+        <iframe id="content-frame" src="analytics.html?v=20260522j" onload="onFrameLoad(this)"></iframe>
     </main>
 
     <script>
-        const DASHBOARD_PAGE_VERSION = '20260522c';
+        const DASHBOARD_PAGE_VERSION = '20260522j';
+
+        function getStoredAuthUser() {
+            try {
+                const raw = localStorage.getItem('pos_auth_user');
+                return raw ? JSON.parse(raw) : null;
+            } catch {
+                return null;
+            }
+        }
+
+        function applyRoleVisibility() {
+            const user = getStoredAuthUser();
+            const role = user?.role || '';
+            document.querySelectorAll('[data-requires-role]').forEach((el) => {
+                const requiredRole = el.getAttribute('data-requires-role');
+                const visible = requiredRole === 'admin' ? role === 'admin' : true;
+                el.classList.toggle('hidden', !visible);
+            });
+        }
 
         function getVersionedPageUrl(page) {
             if (!page) return page;
@@ -145,6 +167,7 @@
             }
         }
 
+        applyRoleVisibility();
         setupSidebarNavigation();
     </script>
 </body>

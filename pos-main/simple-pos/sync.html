@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Data Sync Center</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        body{font-family:'Inter',sans-serif;}
+        .glass-card{background:rgba(30,41,59,0.72);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.08);}
+        .metric-card{background:rgba(15,23,42,.56);border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.45rem;min-height:126px;}
+        .metric-label{font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#94a3b8;}
+        .metric-value{font-size:1.85rem;line-height:1;font-weight:900;color:#f8fafc;}
+        .metric-note{font-size:.82rem;line-height:1.4;color:#94a3b8;}
+        .status-pill{display:inline-flex;align-items:center;gap:.4rem;padding:.42rem .8rem;border-radius:999px;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;border:1px solid transparent;}
+        .status-live{background:rgba(16,185,129,.18);border-color:rgba(16,185,129,.3);color:#6ee7b7;}
+        .status-paused{background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.2);color:#cbd5e1;}
+        .status-warning{background:rgba(245,158,11,.16);border-color:rgba(245,158,11,.28);color:#fbbf24;}
+        .status-danger{background:rgba(239,68,68,.14);border-color:rgba(239,68,68,.24);color:#fca5a5;}
+        .info-chip{display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .72rem;border-radius:999px;background:rgba(15,23,42,.58);border:1px solid rgba(255,255,255,.08);font-size:.72rem;font-weight:700;color:#cbd5e1;}
+        .sync-button{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;padding:.9rem 1rem;border-radius:.95rem;font-size:.9rem;font-weight:800;transition:all .18s ease;border:1px solid transparent;}
+        .sync-button:disabled{opacity:.55;cursor:not-allowed;}
+        .sync-button.primary{background:#dc2626;color:#fff;box-shadow:0 18px 38px rgba(220,38,38,.18);}
+        .sync-button.primary:hover:not(:disabled){background:#b91c1c;}
+        .sync-button.secondary{background:rgba(15,23,42,.72);border-color:rgba(255,255,255,.08);color:#fff;}
+        .sync-button.secondary:hover:not(:disabled){background:rgba(30,41,59,.92);}
+        .sync-button.ghost{background:rgba(59,130,246,.14);border-color:rgba(96,165,250,.22);color:#bfdbfe;}
+        .sync-button.ghost:hover:not(:disabled){background:rgba(59,130,246,.2);}
+        .collection-card{background:linear-gradient(145deg,rgba(15,23,42,.72),rgba(30,41,59,.64));border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1rem;}
+        .empty-shell{background:linear-gradient(145deg,rgba(15,23,42,.84),rgba(30,41,59,.72));border:1px solid rgba(255,255,255,.08);border-radius:1rem;padding:1.25rem;}
+        .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;}
+    </style>
+</head>
+<body class="bg-gradient-mesh font-display text-slate-100 min-h-screen">
+<div class="max-w-[1400px] mx-auto px-6 py-8">
+    <header class="glass-card rounded-xl px-8 py-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-8 shadow-2xl">
+        <div class="flex items-start gap-4">
+            <div class="bg-primary p-2.5 rounded-xl shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined text-white text-2xl">sync_alt</span>
+            </div>
+            <div>
+                <h1 class="text-2xl font-black tracking-tight text-white">MongoDB Sync Center</h1>
+                <p class="text-sm text-slate-400 mt-1">Watch local and online database alignment, push manual syncs, and inspect per-collection activity.</p>
+                <div class="flex flex-wrap gap-2 mt-4" id="syncHeaderChips">
+                    <span class="info-chip"><span class="material-symbols-outlined text-[14px] text-emerald-300">dns</span> Waiting for sync status…</span>
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-3">
+            <button id="syncRefreshBtn" class="sync-button secondary" type="button" onclick="refreshSyncStatus()">
+                <span class="material-symbols-outlined text-lg">refresh</span> Refresh
+            </button>
+            <button id="syncNowBtn" data-sync-action="active-to-standby" class="sync-button primary" type="button" onclick="triggerSync('active-to-standby')">
+                <span class="material-symbols-outlined text-lg">sync</span> Sync Now
+            </button>
+        </div>
+    </header>
+
+    <div id="accessState" class="hidden empty-shell mb-6">
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <span class="material-symbols-outlined text-red-300 text-2xl">admin_panel_settings</span>
+            </div>
+            <div>
+                <h2 class="text-xl font-bold text-white">Admin access required</h2>
+                <p class="text-slate-400 mt-2 max-w-2xl">This sync center is only available to admin accounts because it can copy data between local and online databases.</p>
+            </div>
+        </div>
+    </div>
+
+    <main id="syncApp" class="space-y-6">
+        <section class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4">
+            <div class="metric-card">
+                <div class="flex items-center justify-between">
+                    <span class="metric-label">Active Source</span>
+                    <span class="material-symbols-outlined text-emerald-300 text-xl">storage</span>
+                </div>
+                <div class="metric-value" id="metricActiveSource">—</div>
+                <p class="metric-note" id="metricActiveSourceNote">Waiting for database health…</p>
+            </div>
+            <div class="metric-card">
+                <div class="flex items-center justify-between">
+                    <span class="metric-label">Sync Mode</span>
+                    <span class="material-symbols-outlined text-blue-300 text-xl">hub</span>
+                </div>
+                <div class="metric-value" id="metricSyncMode">—</div>
+                <p class="metric-note" id="metricSyncModeNote">Auto / local / remote / single.</p>
+            </div>
+            <div class="metric-card">
+                <div class="flex items-center justify-between">
+                    <span class="metric-label">Last Run</span>
+                    <span class="material-symbols-outlined text-fuchsia-300 text-xl">schedule</span>
+                </div>
+                <div class="metric-value text-2xl" id="metricLastRun">Never</div>
+                <p class="metric-note" id="metricLastRunNote">No sync has been recorded yet.</p>
+            </div>
+            <div class="metric-card">
+                <div class="flex items-center justify-between">
+                    <span class="metric-label">Interval</span>
+                    <span class="material-symbols-outlined text-amber-300 text-xl">timer</span>
+                </div>
+                <div class="metric-value" id="metricInterval">—</div>
+                <p class="metric-note" id="metricIntervalNote">Automatic background sync cadence.</p>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-6">
+            <div class="glass-card rounded-2xl p-6">
+                <div class="flex items-center justify-between gap-3 mb-5">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">auto_mode</span> Sync Actions
+                        </h2>
+                        <p class="text-sm text-slate-400 mt-1">Push changes in a controlled direction when you need to force alignment.</p>
+                    </div>
+                    <span id="syncRunningPill" class="status-pill status-paused">Idle</span>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                    <button data-sync-action="active-to-standby" class="sync-button primary w-full" type="button" onclick="triggerSync('active-to-standby')">
+                        <span class="material-symbols-outlined text-lg">compare_arrows</span> Active -> Standby
+                    </button>
+                    <button data-sync-action="local-to-remote" class="sync-button ghost w-full" type="button" onclick="triggerSync('local-to-remote')">
+                        <span class="material-symbols-outlined text-lg">upload</span> Local -> Online
+                    </button>
+                    <button data-sync-action="remote-to-local" class="sync-button secondary w-full" type="button" onclick="triggerSync('remote-to-local')">
+                        <span class="material-symbols-outlined text-lg">download</span> Online -> Local
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                    <div class="rounded-xl border border-white/8 bg-slate-950/20 p-4">
+                        <h3 class="text-sm font-bold text-white mb-2">Current topology</h3>
+                        <p class="text-sm text-slate-400 leading-relaxed" id="syncTopologyText">Loading topology…</p>
+                    </div>
+                    <div class="rounded-xl border border-white/8 bg-slate-950/20 p-4">
+                        <h3 class="text-sm font-bold text-white mb-2">Recent outcome</h3>
+                        <p class="text-sm text-slate-400 leading-relaxed" id="syncOutcomeText">Loading latest sync summary…</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-6">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">health_and_safety</span> Health Snapshot
+                        </h2>
+                        <p class="text-sm text-slate-400 mt-1">Fast readout of sync runtime and database routing.</p>
+                    </div>
+                    <span id="healthStatusPill" class="status-pill status-paused">Checking…</span>
+                </div>
+                <div class="space-y-4">
+                    <div class="rounded-xl border border-white/8 bg-slate-950/20 p-4">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 mb-2">Configured Targets</div>
+                        <div class="space-y-2 text-sm">
+                            <div>
+                                <div class="text-slate-400">Local</div>
+                                <div class="mono text-slate-200 break-all" id="localTargetUri">—</div>
+                            </div>
+                            <div>
+                                <div class="text-slate-400">Online</div>
+                                <div class="mono text-slate-200 break-all" id="remoteTargetUri">—</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="rounded-xl border border-white/8 bg-slate-950/20 p-4">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 mb-2">Last Error</div>
+                        <p class="text-sm text-slate-300 leading-relaxed" id="lastErrorText">No sync errors recorded.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-card rounded-2xl p-6">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5">
+                <div>
+                    <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">dataset</span> Collection Activity
+                    </h2>
+                    <p class="text-sm text-slate-400 mt-1">Per-collection copy results from the latest sync run.</p>
+                </div>
+                <span class="info-chip" id="collectionSummaryChip">
+                    <span class="material-symbols-outlined text-[14px] text-blue-300">table_rows</span> Waiting for sync data
+                </span>
+            </div>
+            <div id="collectionGrid" class="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4">
+                <div class="collection-card">
+                    <div class="animate-pulse space-y-3">
+                        <div class="h-5 w-40 rounded bg-white/10"></div>
+                        <div class="h-4 w-full rounded bg-white/10"></div>
+                        <div class="h-4 w-2/3 rounded bg-white/10"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="database.js?v=20260522f"></script>
+<script src="sync.js?v=20260522i"></script>
+</body>
+</html>

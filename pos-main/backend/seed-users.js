@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 const User = require('./models/User');
-const { mongoUri: uri } = require('./config');
+const { connectMongo, redactMongoUri } = require('./mongoConnection');
 
 async function seed() {
-    console.log('Connecting to MongoDB at:', uri);
-    await mongoose.connect(uri);
+    const connection = await connectMongo(mongoose);
+    console.log(`Connecting to MongoDB at: ${redactMongoUri(connection.uri)} (${connection.source})`);
 
     try {
         // Check if admin exists

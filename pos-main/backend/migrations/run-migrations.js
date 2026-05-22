@@ -6,7 +6,7 @@ const mongoose = require('mongoose');
 const Item = require('../models/Item');
 const InventoryTransaction = require('../models/InventoryTransaction');
 const { generateSKU, generateBarcode } = require('../utils/skuGenerator');
-const { mongoUri } = require('../config');
+const { connectMongo, redactMongoUri } = require('../mongoConnection');
 
 async function ensureSkuForItems() {
     const cursor = Item.find({ $or: [ { sku: { $exists: false } }, { sku: null }, { sku: '' } ] }).cursor();
@@ -45,9 +45,8 @@ async function createIndexes() {
 }
 
 async function run() {
-    const uri = mongoUri;
-    console.log('Connecting to', uri);
-    await mongoose.connect(uri, { maxPoolSize: 10 });
+    const connection = await connectMongo(mongoose, { maxPoolSize: 10 });
+    console.log(`Connecting to ${redactMongoUri(connection.uri)} (${connection.source})`);
     try {
         const updated = await ensureSkuForItems();
         console.log('Items updated with SKUs:', updated);

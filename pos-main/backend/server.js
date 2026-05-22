@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const config = require('./config');
+const { connectMongo, redactMongoUri } = require('./mongoConnection');
+const { getSyncStatus, setActiveSyncSource, startBackgroundSync, stopBackgroundSync } = require('./syncService');
 
 const { authenticateToken, authorize } = require('./middleware/auth');
 
@@ -74,13 +76,21 @@ const aiLimiter = rateLimit({
 // Database Connection + Transaction Support Probe
 // ============================================
 let supportsTransactions = false;
+let activeMongoConnection = {
+    source: 'uninitialized',
+    mode: config.mongoConnectionMode,
+    fallbackUsed: false
+};
 
 function getDatabaseHealth() {
     const readyState = mongoose.connection.readyState;
     return {
         ready: readyState === 1,
         readyState,
-        status: READY_STATE_LABELS[readyState] || 'unknown'
+        status: READY_STATE_LABELS[readyState] || 'unknown',
+        connectionMode: activeMongoConnection.mode,
+        activeSource: activeMongoConnection.source,
+        fallbackUsed: activeMongoConnection.fallbackUsed
     };
 }
 
@@ -122,7 +132,8 @@ app.get('/api/health', (req, res) => {
         version: '2.0.0',
         timestamp: new Date().toISOString(),
         database,
-        transactionSupport: supportsTransactions
+        transactionSupport: supportsTransactions,
+        sync: getSyncStatus()
     });
 });
 
@@ -145,6 +156,7 @@ app.use('/api/discounts', authenticateToken, require('./routes/discounts'));
 app.use('/api/advances', authenticateToken, require('./routes/advances'));
 app.use('/api/barcode', authenticateToken, require('./routes/barcode'));
 app.use('/api/mappings', authenticateToken, authorize('admin', 'manager'), require('./routes/mappings'));
+app.use('/api/sync', authenticateToken, authorize('admin'), require('./routes/sync'));
 
 // ============================================
 // Global Error Handler (always returns JSON)
@@ -175,22 +187,24 @@ app.use((err, req, res, next) => {
 });
 
 async function startServer() {
-    if (!config.mongoUri) {
-        console.error('MongoDB configuration error: MONGO_URI or MONGODB_URI must be set.');
-        process.exit(1);
-        return;
-    }
-
-    if (config.nodeEnv === 'production' && !config.hasExplicitMongoUri) {
-        console.error('MongoDB configuration error: MONGO_URI or MONGODB_URI must be set in production.');
+    if (!Array.isArray(config.mongoCandidates) || config.mongoCandidates.length === 0) {
+        console.error('MongoDB configuration error: define MONGO_URI/MONGODB_URI or configure MONGO_LOCAL_URI / MONGO_REMOTE_URI.');
         process.exit(1);
         return;
     }
 
     try {
-        await mongoose.connect(config.mongoUri);
-        console.log('MongoDB Connected successfully');
+        const connection = await connectMongo(mongoose);
+        activeMongoConnection = {
+            source: connection.source,
+            mode: connection.mode,
+            fallbackUsed: connection.fallbackUsed
+        };
+        setActiveSyncSource(connection.source, connection.uri);
+        console.log(`MongoDB connected successfully using ${connection.source} (${connection.mode} mode)`);
+        console.log(`MongoDB URI: ${redactMongoUri(connection.uri)}`);
         await probeTransactionSupport();
+        startBackgroundSync();
 
         app.listen(config.port, () => {
             console.log(`Server running on port ${config.port}`);
@@ -198,8 +212,23 @@ async function startServer() {
         });
     } catch (err) {
         console.error('MongoDB startup error:', err.message);
+        if (Array.isArray(err.attempts) && err.attempts.length) {
+            err.attempts.forEach((attempt) => {
+                console.error(`  ${attempt.source}: ${attempt.uri} -> ${attempt.message}`);
+            });
+        }
         process.exit(1);
     }
 }
+
+process.on('SIGINT', () => {
+    stopBackgroundSync();
+    process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+    stopBackgroundSync();
+    process.exit(0);
+});
 
 startServer();

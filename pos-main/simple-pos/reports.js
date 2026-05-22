@@ -235,8 +235,10 @@ async function viewInvoice(id) {
     setTextIfPresent('detSubtotal', formatCurrency(subtotal));
     setTextIfPresent('detDiscount', formatCurrency(sale.discount || 0));
     setTextIfPresent('detTotal', formatCurrency(sale.totalPrice));
+    const settlement = getSettlementSummary(sale.changeAmount);
     setTextIfPresent('detReceived', formatCurrency(Number(sale.amountReceived ?? sale.totalPrice ?? 0)));
-    setTextIfPresent('detChange', formatCurrency(Number(sale.changeAmount ?? 0)));
+    setTextIfPresent('detSettlementLabel', settlement.label);
+    setTextIfPresent('detChange', formatCurrency(settlement.amount));
 
     const discountRow = document.getElementById('detDiscountRow');
     if (discountRow) {
@@ -275,6 +277,21 @@ function closeInvoice() {
 
 function printInvoice() {
     window.print();
+}
+
+function getSettlementSummary(changeAmount) {
+    const numericChange = Number(changeAmount ?? 0);
+    if (numericChange < 0) {
+        return {
+            label: 'Due:',
+            amount: Math.abs(numericChange)
+        };
+    }
+
+    return {
+        label: 'Change:',
+        amount: numericChange
+    };
 }
 
 async function voidInvoiceAction() {

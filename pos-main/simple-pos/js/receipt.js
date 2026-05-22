@@ -58,6 +58,7 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
     const dateStr = timestamp.toLocaleDateString('en-LK');
     const timeStr = timestamp.toLocaleTimeString('en-LK');
     const receiptId = getSaleReceiptId(savedSale) || 'PENDING';
+    const settlement = getSettlementSummary(totals.change);
 
     const itemsHtml = items.map(item => `
         <tr>
@@ -233,7 +234,7 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
                 <div class="rule"></div>
 
                 <div class="amount-row"><span>Amount Received:</span><span>${formatCurrency(totals.received)}</span></div>
-                <div class="amount-row"><span>Change:</span><span>${formatCurrency(totals.change)}</span></div>
+                <div class="amount-row"><span>${settlement.label}:</span><span>${formatCurrency(settlement.amount)}</span></div>
 
                 <div class="dash"></div>
 
@@ -246,6 +247,21 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
         </body>
         </html>
     `;
+}
+
+function getSettlementSummary(changeAmount) {
+    const numericChange = Number(changeAmount || 0);
+    if (numericChange < 0) {
+        return {
+            label: 'Due',
+            amount: Math.abs(numericChange)
+        };
+    }
+
+    return {
+        label: 'Change',
+        amount: numericChange
+    };
 }
 
 function formatCurrency(amount) {

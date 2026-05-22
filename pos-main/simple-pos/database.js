@@ -1060,4 +1060,27 @@ function saveAdvance(advance) {
 }
 function deleteAdvance(id) { return fetchAPI(`/advances/${id}`, { method: 'DELETE' }); }
 
+// ==========================================
+// Mongo Sync
+// ==========================================
+
+function getSyncStatus() {
+    return fetchAPI('/sync/status');
+}
+
+function runMongoSync({ direction = 'active-to-standby', collections = null } = {}) {
+    const body = { direction };
+    if (Array.isArray(collections) && collections.length) {
+        body.collections = collections;
+    }
+    return fetchAPI('/sync/run', { method: 'POST', body });
+}
+
+if (typeof window !== 'undefined') {
+    Object.assign(window.POS_API, {
+        getSyncStatus,
+        runMongoSync
+    });
+}
+
 /* placeholder aria-label */
