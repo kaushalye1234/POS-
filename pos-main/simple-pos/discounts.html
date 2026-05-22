@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - AI Discounts & Promotions</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        body{font-family:'Inter',sans-serif;}
+        .glass-card{background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);}
+        .bg-mesh{background-color:#0f172a;background-image:radial-gradient(at 0% 0%,rgba(220,40,40,0.1) 0,transparent 50%),radial-gradient(at 100% 100%,rgba(88,28,135,0.15) 0,transparent 50%);}
+        .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:center;}
+        .modal.active{display:flex;}
+        .modal-content{background:rgba(15,23,42,.97);border:1px solid rgba(255,255,255,.1);border-radius:1rem;padding:1.75rem;width:100%;max-width:520px;animation:slideUp .3s ease;}
+        @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+        .input-field{background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.12);border-radius:.5rem;padding:.65rem 1rem;color:white;outline:none;transition:border-color .2s;width:100%;}
+        .input-field:focus{border-color:#dc2626;}.input-field::placeholder{color:#475569;}
+        select.input-field option{background:#1e293b;}
+
+        /* AI Panel */
+        .ai-panel{background:linear-gradient(135deg,rgba(88,28,135,.25),rgba(30,58,138,.2));border:1px solid rgba(139,92,246,.3);}
+        .ai-typing { display: inline-block; }
+        .ai-typing::after { content:''; animation: blink 1s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+        
+        /* Rule card */
+        .rule-card{background:rgba(30,41,59,.6);border:1px solid rgba(255,255,255,.08);border-radius:.75rem;padding:1rem;transition:all .2s;}
+        .rule-card:hover{border-color:rgba(255,255,255,.18);}
+        .rule-active{border-left:3px solid #10b981;}
+        .rule-inactive{border-left:3px solid #475569;opacity:.6;}
+        .rule-type-percent{background:rgba(16,185,129,.2);color:#10b981;border:1px solid rgba(16,185,129,.3);}
+        .rule-type-fixed{background:rgba(59,130,246,.2);color:#60a5fa;border:1px solid rgba(59,130,246,.3);}
+        .rule-type-bogo{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.3);}
+        .type-badge{padding:1px 8px;border-radius:99px;font-size:.6rem;font-weight:800;text-transform:uppercase;}
+
+        /* Shimmer loading */
+        .shimmer{background:linear-gradient(90deg,rgba(255,255,255,.05) 25%,rgba(255,255,255,.1) 50%,rgba(255,255,255,.05) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+    </style>
+</head>
+<body class="bg-mesh font-display text-slate-100 min-h-screen">
+<div class="max-w-[1400px] mx-auto px-6 py-8">
+    <!-- Header -->
+    <header class="glass-card rounded-xl px-8 py-4 flex items-center justify-between mb-8 shadow-2xl">
+        <div class="flex items-center gap-3">
+            <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined text-white text-2xl">local_offer</span>
+            </div>
+            <div>
+                <h1 class="text-xl font-black tracking-tight uppercase">Fashion <span class="text-primary">Shaa</span></h1>
+                <p class="text-xs text-slate-500 font-semibold">AI-Powered Discounts & Promotions Engine</p>
+            </div>
+        </div>
+        <a href="index.html" class="flex items-center gap-2 bg-primary hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-lg shadow-primary/20">
+            <span class="material-symbols-outlined text-sm">arrow_back</span> Back to POS
+        </a>
+    </header>
+
+    <div class="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-6">
+
+        <!-- Left: Discount Rules -->
+        <div>
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">rule</span> Discount Rules
+                </h2>
+                <button onclick="openRuleModal()" class="flex items-center gap-2 bg-primary hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-sm">add</span> New Rule
+                </button>
+            </div>
+            <div id="rulesContainer" class="space-y-3">
+                <div class="shimmer rounded-xl h-24"></div>
+                <div class="shimmer rounded-xl h-24"></div>
+            </div>
+        </div>
+
+        <!-- Right: AI Analysis Panel -->
+        <div>
+            <div class="ai-panel rounded-xl p-6 sticky top-6">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-10 h-10 rounded-full bg-emerald-500/30 border border-emerald-500/50 flex items-center justify-center">
+                        <span class="material-symbols-outlined text-emerald-300">smart_toy</span>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-white">AI Discount Advisor</h3>
+                        <p class="text-xs text-emerald-300">Powered by Gemini AI</p>
+                    </div>
+                </div>
+
+                <!-- API Key Setup -->
+                <div id="apiKeySection" class="mb-4">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Gemini API Key</label>
+                    <div class="flex gap-2">
+                        <input aria-label="Input field"  type="password" id="geminiApiKey" class="input-field text-sm" placeholder="AIzaSy..." />
+                        <button onclick="saveApiKey()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap">Save</button>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-1">Get a free key at <a href="https://aistudio.google.com" target="_blank" class="text-emerald-400 hover:underline">aistudio.google.com</a></p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Analysis Context</label>
+                    <select aria-label="Select field"  id="aiContext" class="input-field text-sm" style="color-scheme:dark;">
+                        <option value="general">General Business Advice</option>
+                        <option value="slow_season">Slow Season / Low Traffic</option>
+                        <option value="new_stock">Clear Old Stock</option>
+                        <option value="loyalty">Boost Loyalty Program</option>
+                        <option value="competitor">Counter Competitor Prices</option>
+                        <option value="holiday">Upcoming Holiday/Event</option>
+                    </select>
+                </div>
+
+                <button onclick="runAIAnalysis()" id="aiAnalyzeBtn" class="w-full bg-gradient-to-r from-emerald-600 to-blue-600 hover:from-emerald-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-2 transition-all shadow-lg mb-4">
+                    <span class="material-symbols-outlined text-sm">auto_awesome</span> Analyze & Suggest Discounts
+                </button>
+
+                <div id="aiResponseArea">
+                    <div class="text-center text-slate-500 text-sm py-4">
+                        <span class="material-symbols-outlined text-3xl block mb-2 text-slate-600">psychology</span>
+                        Click "Analyze" and the AI will study your sales data and suggest the best discounts and promotions for your store.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rule Modal -->
+<div id="ruleModal" class="modal">
+    <div class="modal-content">
+        <div class="flex justify-between items-center mb-5 pb-4 border-b border-slate-700/50">
+            <h2 id="ruleModalTitle" class="text-lg font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">local_offer</span> New Discount Rule
+            </h2>
+            <button onclick="closeRuleModal()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+        </div>
+        <div class="space-y-4 mb-4">
+            <div>
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Rule Name *</label>
+                <input aria-label="Input field"  type="text" id="ruleName" class="input-field" placeholder="e.g. Weekend Flash Sale, Bulk Buy..." />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Type *</label>
+                    <select aria-label="Select field"  id="ruleType" class="input-field" style="color-scheme:dark;" onchange="updateRuleValueLabel()">
+                        <option value="percentage">Percentage Off (%)</option>
+                        <option value="fixed">Fixed Amount Off (Rs.)</option>
+                        <option value="bogo">Buy One Get One</option>
+                    </select>
+                </div>
+                <div>
+                    <label id="ruleValueLabel" class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Discount Value (%)</label>
+                    <input aria-label="Input field"  type="number" id="ruleValue" class="input-field" placeholder="e.g. 10" min="0" step="0.01" />
+
+                    <div class="mt-2 flex items-center gap-2">
+                        <input aria-label="Input field"  id="ruleIsRange" type="checkbox" onchange="toggleRangeMode()" />
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Range</span>
+                    </div>
+
+                    <div id="ruleRangeFields" class="grid grid-cols-2 gap-2 mt-2 hidden">
+                        <input aria-label="Input field"  type="number" id="ruleValueMin" class="input-field" placeholder="Min" min="0" step="0.01" />
+                        <input aria-label="Input field"  type="number" id="ruleValueMax" class="input-field" placeholder="Max" min="0" step="0.01" />
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Applies To</label>
+                    <select aria-label="Select field"  id="ruleApplies" class="input-field" style="color-scheme:dark;">
+                        <option value="all">All Items</option>
+                        <option value="Shirt">Shirts</option>
+                        <option value="Pants">Pants</option>
+                        <option value="Dress">Dresses</option>
+                        <option value="Accessories">Accessories</option>
+                        <option value="selected">Selected Items Only</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Min. Purchase (Rs.)</label>
+                    <input aria-label="Input field"  type="number" id="ruleMinPurchase" class="input-field" placeholder="0 = no minimum" min="0"/>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Start Date</label>
+                    <input aria-label="Input field"  type="date" id="ruleStartDate" class="input-field" style="color-scheme:dark;"/>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">End Date</label>
+                    <input aria-label="Input field"  type="date" id="ruleEndDate" class="input-field" style="color-scheme:dark;"/>
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Description / Notes</label>
+                <input aria-label="Input field"  type="text" id="ruleDesc" class="input-field" placeholder="What this promotion is about..."/>
+            </div>
+            <div class="flex items-center gap-3">
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input aria-label="Input field"  id="ruleActive" type="checkbox" class="sr-only peer" checked/>
+                    <div class="w-11 h-6 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:start-0.5 after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-secondary"></div>
+                </label>
+                <span class="text-sm font-semibold text-white">Active</span>
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <button onclick="closeRuleModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl text-sm">Cancel</button>
+            <button onclick="saveRuleForm()" class="flex-1 bg-primary hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-primary/20">Save Rule</button>
+        </div>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script src="discounts.js"></script>
+</body>
+</html>

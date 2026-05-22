@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer components {
+  /* Common glass effect from stitch files */
+  .glass,
+  .glass-card {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .bg-gradient-mesh {
+    background-color: #0f172a;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(220, 40, 40, 0.1) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(88, 28, 135, 0.15) 0px, transparent 50%);
+  }
+
+  /* Shared form/control styles (were previously @apply'd inside HTML files) */
+  .input-field {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary focus:border-transparent outline-none w-full text-slate-100 placeholder-slate-500 transition-colors;
+  }
+
+  .btn-action {
+    @apply flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition-all;
+  }
+
+  .status-pending {
+    @apply bg-amber-500/20 text-amber-500 border border-amber-500/30 px-2 py-1 rounded text-xs font-bold uppercase;
+  }
+  .status-deducted {
+    @apply bg-emerald-500/20 text-emerald-500 border border-emerald-500/30 px-2 py-1 rounded text-xs font-bold uppercase;
+  }
+  .status-completed {
+    @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded text-xs font-black uppercase tracking-wider;
+  }
+  .status-voided {
+    @apply bg-red-500/20 text-red-400 border border-red-500/30 px-2 py-1 rounded text-xs font-black uppercase tracking-wider;
+  }
+  .status-refunded {
+    @apply bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-1 rounded text-xs font-black uppercase tracking-wider;
+  }
+
+  /* Scrollbar hiding utility */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

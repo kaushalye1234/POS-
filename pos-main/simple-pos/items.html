@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Inventory Management</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        .glass {
+            background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .bg-gradient-mesh {
+            background-color: #0f172a;
+            background-image: radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.15) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, rgba(220, 40, 40, 0.1) 0px, transparent 50%);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen bg-gradient-mesh">
+    <div class="max-w-[1400px] mx-auto px-6 py-8">
+        
+        <!-- Header Section -->
+        <header class="glass rounded-xl px-8 py-4 flex items-center justify-between mb-8 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-white text-2xl">sell</span>
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight italic uppercase">
+                    FASHION <span class="text-primary">SHAA</span>
+                </h1>
+            </div>
+            <a href="index.html" class="flex items-center gap-2 bg-primary hover:bg-red-700 text-white px-6 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined text-sm">arrow_back</span>
+                <span>Back to POS</span>
+            </a>
+        </header>
+
+        <!-- Analytics Row -->
+        <div id="itemAnalytics" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="glass p-6 rounded-xl flex items-center gap-4 text-center justify-center text-slate-400 italic">
+                Loading analytics...
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-8">
+            
+            <!-- Left Column: Add New Item -->
+            <aside class="flex flex-col gap-6">
+                <div class="glass p-6 rounded-xl shadow-xl sticky top-8">
+                    <h2 id="formTitle" class="text-xl font-bold mb-6 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">add_circle</span> Add New Item
+                    </h2>
+                    
+                    <div class="space-y-5">
+                        <div class="flex flex-col gap-2">
+                            <label for="itemId" class="text-sm font-medium text-slate-400">Item Number</label>
+                            <input aria-label="Input field"  id="itemId" type="number" min="1" class="w-full glass border-slate-700 rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-slate-100 placeholder:text-slate-600 transition-all" placeholder="e.g. 1"/>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="itemName" class="text-sm font-medium text-slate-400">Item Name</label>
+                            <input aria-label="Input field"  id="itemName" type="text" class="w-full glass border-slate-700 rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-slate-100 placeholder:text-slate-600 transition-all" placeholder="e.g. Silk Skirt"/>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="flex flex-col gap-2">
+                                <label for="itemCategory" class="text-sm font-medium text-slate-400">Category</label>
+                                <input aria-label="Input field"  id="itemCategory" type="text" class="w-full glass border-slate-700 rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-slate-100 placeholder:text-slate-600 transition-all" placeholder="e.g. Ladies"/>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label for="itemPrice" class="text-sm font-medium text-slate-400">Price (Rs.)</label>
+                                <input aria-label="Input field"  id="itemPrice" type="number" min="0" step="0.01" class="w-full glass border-slate-700 rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-slate-100 placeholder:text-slate-600 transition-all" placeholder="e.g. 2500"/>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="flex flex-col gap-2">
+                                <label for="itemStock" class="text-sm font-medium text-slate-400">Stock Level</label>
+                                <input aria-label="Input field"  id="itemStock" type="number" min="0" step="1" class="w-full glass border-slate-700 rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-slate-100 placeholder:text-slate-600 transition-all" placeholder="e.g. 12"/>
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label for="itemStoredAt" class="text-sm font-medium text-slate-400">Stored Date</label>
+                                <input aria-label="Input field"  id="itemStoredAt" type="date" class="w-full glass border-slate-700 rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-slate-100 transition-all" />
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <label for="itemImage" class="text-sm font-medium text-slate-400">Item Picture</label>
+                            <input aria-label="Input field"  id="itemImage" type="file" accept="image/*" class="w-full glass border-slate-700 rounded-lg py-2 px-3 text-slate-200" />
+                            <img id="itemImagePreview" class="hidden" alt="Item preview" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;border:1px solid rgba(255,255,255,0.08)" />
+                            <p class="text-xs text-slate-500">Stored in database (Base64). Keep images small for best performance.</p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="itemBarcode" class="text-sm font-medium text-slate-400">Barcode / UPC</label>
+                            <input aria-label="Input field"  id="itemBarcode" type="text" class="w-full glass border-slate-700 rounded-lg py-3 px-4 focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-slate-100 placeholder:text-slate-600 transition-all" placeholder="e.g. FS-LAD-01-260415-ITM-1"/>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button id="generateBarcodeBtn" type="button" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined" style="font-size:18px">qr_code</span>
+                                    Generate
+                                </button>
+                                <button id="printBarcodeBtn" type="button" class="bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined" style="font-size:18px">print</span>
+                                    Print
+                                </button>
+                            </div>
+                            <div id="barcodePreview" class="hidden" style="margin-top:8px; text-align:center;"></div>
+                        </div>
+                        <button id="saveItemBtn" class="w-full bg-[#10b981] hover:bg-emerald-600 text-white font-bold py-3 px-4 rounded-lg shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2 mt-4">
+                            <span class="material-symbols-outlined">save</span> Save Item
+                        </button>
+                        <button id="cancelEditBtn" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-all items-center justify-center gap-2 mt-2" style="display: none;">
+                            <span class="material-symbols-outlined">cancel</span> Cancel Edit
+                        </button>
+                    </div>
+
+                    <hr />
+                    <div class="import-section" style="margin-top:16px">
+                        <label class="text-sm font-semibold">Import CSV (columns: sku,name,price,stockLevel,category,storedAt)</label>
+                        <input aria-label="Input field"  id="importFile" type="file" accept=".csv" style="display:block;margin-top:8px" />
+                        <button id="previewImportBtn" class="btn-primary" style="margin-top:8px">Preview Import</button>
+                        <div id="importPreview" style="margin-top:12px"></div>
+                    </div>
+                </div>
+            </aside>
+            
+            <!-- Right Column: Data Table -->
+            <main class="glass rounded-xl overflow-hidden shadow-xl">
+                <div class="p-6 border-b border-white/10 flex justify-between items-center">
+                    <h3 class="text-lg font-semibold flex items-center gap-2"><span class="material-symbols-outlined text-primary">inventory_2</span> Inventory List</h3>
+                    <div class="relative focus-within:ring-2 focus-within:ring-primary focus-within:border-primary rounded-full transition-all">
+                        <span class="material-symbols-outlined absolute left-3 top-2.5 text-slate-500 text-sm">search</span>
+                        <input aria-label="Input field"  type="text" id="inventorySearch" class="glass pl-10 pr-4 py-2 border-slate-700 rounded-full text-sm w-64 focus:outline-none placeholder:text-slate-500" placeholder="Search items..."/>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-black/20 text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-700/50">
+                                <th class="px-6 py-4">Item</th>
+                                <th class="px-6 py-4">Name</th>
+                                <th class="px-6 py-4">Category</th>
+                                <th class="px-6 py-4">Price</th>
+                                <th class="px-6 py-4">Stock</th>
+                                <th class="px-6 py-4">Stored</th>
+                                <th class="px-6 py-4">Barcode</th>
+                                <th class="px-6 py-4">Sold</th>
+                                <th class="px-6 py-4">Revenue</th>
+                                <th class="px-6 py-4">Last Sold</th>
+                                <th class="px-6 py-4 text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody" class="divide-y divide-white/5">
+                            <tr>
+                                <td colspan="11" class="text-center p-10 text-slate-500 italic">Loading items...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- We add custom dynamic styling logic mapping for items.js -> these classes are injected by JS -->
+    <style>
+        /* JS maps generated rows using inline styles, but let's override matching elements */
+        #itemsTableBody tr:not(.empty-row) {
+            transition: background-color 0.2s;
+        }
+        #itemsTableBody tr:not(.empty-row):hover {
+            background-color: rgba(255,255,255,0.05);
+        }
+    </style>
+
+    <script src="database.js"></script>
+    <script src="items-analytics.js"></script>
+    <!-- Basic search functionality for the new search box -->
+    <script>
+        document.getElementById('inventorySearch')?.addEventListener('input', function(e) {
+            const query = (e.target.value || '').toLowerCase();
+            const rows = document.querySelectorAll('#itemsTableBody tr');
+            rows.forEach(row => {
+               if (row.children.length > 1) {
+                   const text = (row.textContent || '').toLowerCase();
+                   row.style.display = text.includes(query) ? '' : 'none';
+               }
+            });
+        });
+    </script>
+    <script src="items.js"></script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://ui-avatars.com; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Profile</title>
+
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background:
+                radial-gradient(circle at top right, rgba(225, 29, 72, 0.14), transparent 28%),
+                linear-gradient(180deg, #09101f 0%, #0c1222 100%);
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+        }
+        .stat-card {
+            background: rgba(15, 23, 42, 0.66);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 1rem;
+            padding: 1rem;
+        }
+        .role-admin { background: rgba(239, 68, 68, 0.18); color: #fca5a5; }
+        .role-manager { background: rgba(168, 85, 247, 0.18); color: #d8b4fe; }
+        .role-cashier { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+        .quick-link {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1rem 1.1rem;
+            background: rgba(15, 23, 42, 0.55);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 1rem;
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+        }
+        .quick-link:hover {
+            background: rgba(30, 41, 59, 0.78);
+            border-color: rgba(225, 29, 72, 0.3);
+            transform: translateY(-1px);
+        }
+        .muted {
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-100">
+    <header class="sticky top-0 z-40 border-b border-white/5 bg-slate-950/70 backdrop-blur-xl">
+        <div class="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-rose-500/20 bg-rose-500/10">
+                    <span class="material-symbols-outlined text-rose-500">person</span>
+                </div>
+                <div>
+                    <div class="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Account</div>
+                    <h1 class="text-xl font-black tracking-tight">Profile</h1>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <a href="dashboard.html" class="rounded-xl border border-slate-700 bg-slate-900/70 px-4 py-2.5 text-sm font-semibold text-slate-200 transition-colors hover:bg-slate-800">
+                    Dashboard
+                </a>
+                <a href="index.html" class="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-rose-500">
+                    Back to POS
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto flex max-w-6xl flex-col gap-6 px-6 py-8">
+        <section class="glass-card rounded-[1.5rem] p-6">
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                <div class="flex items-center gap-5">
+                    <img id="profileAvatar" alt="Profile avatar" class="h-24 w-24 rounded-3xl border border-white/10 object-cover" src="https://ui-avatars.com/api/?name=User&background=0f172a&color=e11d48&size=160&bold=true">
+                    <div class="min-w-0">
+                        <div class="text-sm font-semibold text-slate-400">Signed in as</div>
+                        <h2 id="profileName" class="truncate text-3xl font-black tracking-tight text-white">Loading...</h2>
+                        <div class="mt-3 flex flex-wrap items-center gap-2">
+                            <span id="profileRoleBadge" class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.2em]">Role</span>
+                            <span id="profileEmployeeBadge" class="rounded-full border border-white/10 bg-slate-900/70 px-3 py-1 text-xs font-bold text-slate-300">Employee</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                    <button id="profileLogoutBtn" class="rounded-xl border border-rose-500/20 bg-rose-500/10 px-4 py-2.5 text-sm font-semibold text-rose-300 transition-colors hover:bg-rose-500/20">
+                        Sign Out
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="grid gap-6 lg:grid-cols-[1.35fr_0.95fr]">
+            <div class="glass-card rounded-[1.5rem] p-6">
+                <div class="mb-5">
+                    <h3 class="text-lg font-bold text-white">Account Overview</h3>
+                    <p class="mt-1 text-sm muted">Your login details and current system access.</p>
+                </div>
+
+                <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="stat-card">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Username</div>
+                        <div id="profileUsername" class="mt-2 text-lg font-bold text-white">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">System Role</div>
+                        <div id="profileRole" class="mt-2 text-lg font-bold text-white">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Linked Employee ID</div>
+                        <div id="profileEmployeeId" class="mt-2 text-lg font-bold text-white">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Account Status</div>
+                        <div id="profileStatus" class="mt-2 text-lg font-bold text-white">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Last Login</div>
+                        <div id="profileLastLogin" class="mt-2 text-lg font-bold text-white">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">Member Since</div>
+                        <div id="profileCreatedAt" class="mt-2 text-lg font-bold text-white">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-[1.5rem] p-6">
+                <div class="mb-5">
+                    <h3 class="text-lg font-bold text-white">Quick Links</h3>
+                    <p class="mt-1 text-sm muted">Jump into the parts of the system your role can use.</p>
+                </div>
+
+                <div id="profileQuickLinks" class="space-y-3"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="database.js"></script>
+    <script src="profile.js"></script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Hub - Fashion Shaa POS</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet" />
+    
+    <link rel="stylesheet" href="output.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0b1326; height: 100vh; display: flex; flex-direction: column; }
+        #sidebar { width: 260px; height: 100vh; border-right: 1px solid rgba(255,255,255,0.05); background: rgba(14, 21, 38, 0.95); backdrop-filter: blur(10px); display: flex; flex-direction: column; flex-shrink: 0; }
+        #content-wrapper { flex: 1; height: 100vh; position: relative; }
+        iframe { width: 100%; height: 100%; border: none; }
+        
+        .sidebar-link {
+            display: flex; align-items: center; gap: 12px; padding: 14px 24px; color: #94a3b8; text-decoration: none; font-weight: 500; font-size: 15px; transition: all 0.2s; border-left: 3px solid transparent;
+        }
+        .sidebar-link:hover { background: rgba(220, 38, 38, 0.05); color: #fff; border-left-color: rgba(220, 38, 38, 0.5); }
+        .sidebar-link.active { background: rgba(220, 38, 38, 0.1); color: #fff; border-left-color: #dc2626; }
+        .sidebar-link .material-symbols-outlined { font-size: 22px; transition: transform 0.2s; }
+        .sidebar-link:hover .material-symbols-outlined { transform: translateX(2px); }
+    </style>
+</head>
+<body class="text-slate-200 font-inter antialiased flex-row !flex">
+
+    <!-- Sidebar Dashboard -->
+    <aside id="sidebar">
+        <div class="p-6 border-b border-white/5 flex items-center justify-between">
+            <h1 class="font-manrope text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-red-500">grid_view</span> Enterprise Hub
+            </h1>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-4 flex flex-col gap-1">
+            <p class="px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-2">Overview</p>
+            <button type="button" data-page="analytics.html" class="sidebar-link active text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined">insights</span> Analytics
+            </button>
+            <button type="button" data-page="reports.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-orange-400">receipt_long</span> Invoice History
+            </button>
+
+            <p class="px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">Operations</p>
+            <button type="button" data-page="returns.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-red-400">assignment_return</span> Returns
+            </button>
+            <button type="button" data-page="shifts.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-emerald-400">schedule</span> Shift Management
+            </button>
+            <button type="button" data-page="advances.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-yellow-500">payments</span> Advances
+            </button>
+            <button type="button" data-page="employees.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-cyan-400">badge</span> Employees & Access
+            </button>
+
+            <p class="px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">CRM & Marketing</p>
+            <button type="button" data-page="customers.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-blue-400">group</span> Customers
+            </button>
+            <button type="button" data-page="discounts.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-pink-400">percent</span> AI Discounts
+            </button>
+
+            <p class="px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">Inventory</p>
+            <button type="button" data-page="suppliers.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-indigo-400">local_shipping</span> Suppliers
+            </button>
+        </div>
+
+        <div class="p-6 border-t border-white/5">
+            <a href="index.html" class="flex items-center justify-center gap-2 w-full py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-medium transition-colors border border-slate-700">
+                <span class="material-symbols-outlined">point_of_sale</span> Back to POS
+            </a>
+        </div>
+    </aside>
+
+    <!-- Main Content Frame -->
+    <main id="content-wrapper">
+        <iframe id="content-frame" src="analytics.html?v=20260522c" onload="onFrameLoad(this)"></iframe>
+    </main>
+
+    <script>
+        const DASHBOARD_PAGE_VERSION = '20260522c';
+
+        function getVersionedPageUrl(page) {
+            if (!page) return page;
+            return page.includes('?')
+                ? `${page}&v=${DASHBOARD_PAGE_VERSION}`
+                : `${page}?v=${DASHBOARD_PAGE_VERSION}`;
+        }
+
+        function setupSidebarNavigation() {
+            document.querySelectorAll('.sidebar-link[data-page]').forEach((link) => {
+                link.addEventListener('click', () => {
+                    loadPage(link.dataset.page, link);
+                });
+            });
+        }
+
+        function loadPage(url, el) {
+            document.querySelectorAll('.sidebar-link').forEach(link => link.classList.remove('active'));
+            el.classList.add('active');
+            
+            const frame = document.getElementById('content-frame');
+            frame.style.opacity = '0.5';
+            frame.src = getVersionedPageUrl(url);
+            setTimeout(() => frame.style.opacity = '1', 300);
+        }
+
+        function onFrameLoad(frame) {
+            try {
+                // Hide the top header in the loaded page to prevent double navigation UI
+                const doc = frame.contentWindow.document;
+                const header = doc.querySelector('header');
+                if (header) {
+                    header.style.display = 'none';
+                }
+                
+                // Adjust body padding so it doesn't look cut off
+                if (doc.body) {
+                    doc.body.style.paddingTop = '1rem';
+                    // Hide backgrounds if they conflict with the dashboard
+                    doc.body.style.background = 'transparent';
+                }
+            } catch (e) {
+                console.warn('Could not modify iframe content (likely cross-origin issue or still loading):', e);
+            }
+        }
+
+        setupSidebarNavigation();
+    </script>
+</body>
+</html>

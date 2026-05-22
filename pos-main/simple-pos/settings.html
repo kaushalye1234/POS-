@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - POS Settings</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .bg-emerald-glow {
+            background-color: #0f172a;
+            background-image: radial-gradient(circle at top right, rgba(124, 58, 237, 0.15), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(220, 40, 40, 0.05), transparent 40%);
+        }
+        
+        /* Date/time input styling defaults override */
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body class="font-display text-slate-900 dark:text-slate-100 min-h-screen bg-emerald-glow flex justify-center py-10 px-4">
+    <div class="w-full max-w-[700px] flex flex-col gap-6">
+        <!-- Header -->
+        <header class="glass-card rounded-xl p-4 flex items-center justify-between sticky top-4 z-50">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary p-1.5 rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-white text-xl">settings</span>
+                </div>
+                <h1 class="text-xl font-extrabold tracking-tight uppercase">
+                    Fashion <span class="text-primary">Shaa</span>
+                </h1>
+            </div>
+            <a href="index.html" class="bg-primary hover:bg-red-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center gap-2 shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined text-sm">arrow_back</span>
+                Back to POS
+            </a>
+        </header>
+
+        <main class="flex flex-col gap-6">
+            <!-- Section 1: Date and Time -->
+            <section class="flex flex-col gap-4 mt-4">
+                <div class="flex items-center gap-2 px-1">
+                    <span class="material-symbols-outlined text-primary text-xl">schedule</span>
+                    <h2 class="text-lg font-semibold">Date and Time Configuration</h2>
+                </div>
+                <div class="glass-card rounded-xl p-8 flex flex-col gap-6 shadow-2xl">
+                    <!-- Live Clock Display -->
+                    <div class="text-center space-y-1">
+                        <div id="liveTime" class="text-5xl font-black text-primary tracking-tight">--:--:--</div>
+                        <div id="liveDate" class="text-slate-400 font-medium">--</div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-2">
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Set Date</label>
+                            <input aria-label="Input field"  id="dateInput" class="bg-slate-900/50 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none" type="date"/>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">Set Time</label>
+                            <input aria-label="Input field"  id="timeInput" class="bg-slate-900/50 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none" type="time" step="1"/>
+                        </div>
+                    </div>
+                    <!-- Warning Box -->
+                    <div class="flex gap-4 items-start border border-amber-500/50 bg-amber-500/10 p-5 rounded-xl">
+                        <span class="material-symbols-outlined text-amber-500 text-2xl">warning</span>
+                        <div class="text-sm text-amber-200/90 leading-relaxed font-medium">
+                            <span class="font-bold block text-base text-amber-400 mb-1">Admin Privileges Required</span>
+                            Clicking update will request administrator permission to modify system clock synchronization settings. A Windows confirmation prompt will appear.
+                        </div>
+                    </div>
+                    <button id="updateTimeBtn" class="w-full bg-gradient-to-r from-primary to-primary hover:opacity-90 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(220,38,38,0.3)] transition-all flex justify-center items-center gap-2 mt-2">
+                        <span class="material-symbols-outlined">sync</span> Update System Time
+                    </button>
+                </div>
+            </section>
+
+            <!-- Section 2: POS Behavior -->
+            <section class="flex flex-col gap-4 mt-4">
+                <div class="flex items-center gap-2 px-1">
+                    <span class="material-symbols-outlined text-primary text-xl">settings_input_component</span>
+                    <h2 class="text-lg font-semibold">POS Behavior</h2>
+                </div>
+                <div class="glass-card rounded-xl p-8 flex flex-col gap-6 shadow-2xl">
+                    <div class="flex items-center justify-between gap-6 pb-6 border-b border-slate-700/50">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="text-base font-bold text-white">Item Number Popup</div>
+                            <p class="text-sm text-slate-400 leading-normal mb-0 max-w-sm">
+                                When enabled, a popup will appear when adding items to enter an item number for database lookup. When disabled, items auto-name as "Item 1", etc.
+                            </p>
+                        </div>
+                        <!-- Toggle Switch -->
+                        <label class="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
+                            <input aria-label="Input field"  id="itemPopupToggle" type="checkbox" class="sr-only peer"/>
+                            <div class="w-14 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[3px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-between gap-6">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="text-base font-bold text-white">Keyboard Shortcuts</div>
+                            <p class="text-sm text-slate-400 leading-normal mb-0 max-w-sm">
+                                Enable fast checkout using the physical Numpad keys, Enter, Esc, and F1-F4 mapping functions natively without mouse clicks.
+                            </p>
+                        </div>
+                        <!-- Toggle Switch -->
+                        <label class="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
+                            <input aria-label="Input field"  id="keyboardShortcutsToggle" type="checkbox" class="sr-only peer" checked/>
+                            <div class="w-14 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[3px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500"></div>
+                        </label>
+                    </div>
+                </div>
+            </section>
+            <!-- Section 3: Database Infrastructure -->
+            <section class="flex flex-col gap-4 mt-4">
+                <div class="flex items-center gap-2 px-1">
+                    <span class="material-symbols-outlined text-primary text-xl">cloud_sync</span>
+                    <h2 class="text-lg font-semibold">Database Infrastructure (V2)</h2>
+                </div>
+                <div class="glass-card rounded-xl p-8 flex flex-col gap-6 shadow-2xl">
+                    <!-- API Server Configuration -->
+                    <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 p-5 flex flex-col gap-4">
+                        <div class="flex items-start justify-between gap-4">
+                            <div class="flex flex-col gap-1">
+                                <div class="text-base font-bold text-white">API Server</div>
+                                <p class="text-sm text-slate-400 leading-normal mb-0 max-w-xl">
+                                    Configure where the POS connects for MongoDB (V2) APIs. Use local <b>http://localhost</b> during development or a remote <b>https://</b> API for hosted backends such as Render.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-bold uppercase tracking-wider text-slate-400 ml-1">API Origin</label>
+                                <input aria-label="Input field"  id="apiOriginInput" class="bg-slate-900/50 border border-slate-700 rounded-lg p-3 focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none" placeholder="http://localhost:5000" />
+                            </div>
+                            <button id="btnSaveApiOrigin" class="bg-slate-700 hover:bg-slate-600 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2 justify-center">
+                                <span class="material-symbols-outlined">save</span>
+                                Save
+                            </button>
+                            <button id="btnTestApiOrigin" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg flex items-center gap-2 justify-center">
+                                <span class="material-symbols-outlined">wifi</span>
+                                Test
+                            </button>
+                        </div>
+                        <div id="apiOriginStatus" class="hidden text-sm font-semibold rounded-lg p-4 bg-slate-800 text-center"></div>
+                    </div>
+
+                    <!-- Migration -->
+                    <div class="flex items-center justify-between gap-6">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="text-base font-bold text-white">Local-to-Cloud Migration</div>
+                            <p class="text-sm text-slate-400 leading-normal mb-0 max-w-sm">
+                                Migrate all Employees, Inventory, and Sales from IndexedDB to the new MongoDB backend. Requires the API server running at the configured address.
+                            </p>
+                        </div>
+                        <button id="btnMigrateDB" class="bg-primary hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:shadow-primary/40 flex items-center gap-2 shrink-0">
+                            <span class="material-symbols-outlined">database</span>
+                            Migrate Data
+                        </button>
+                    </div>
+                    <div id="migrationStatus" class="hidden text-sm font-semibold rounded-lg p-4 bg-slate-800 text-center"></div>
+                </div>
+            </section>
+
+            <!-- Section 4: Developer Settings -->
+            <section class="flex flex-col gap-4 mt-4">
+                <div class="flex items-center gap-2 px-1">
+                    <span class="material-symbols-outlined text-primary text-xl">code</span>
+                    <h2 class="text-lg font-semibold">Developer Settings</h2>
+                </div>
+                <div class="glass-card rounded-xl p-8 flex flex-col gap-6 shadow-2xl">
+                    <!-- DEV MODE Toggle -->
+                    <div class="flex items-center justify-between gap-6 pb-6 border-b border-slate-700/50">
+                        <div class="flex flex-col gap-1.5">
+                            <div class="text-base font-bold text-white flex items-center gap-2">
+                                <span class="bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded text-xs font-mono">DEV</span>
+                                Developer Mode
+                            </div>
+                            <p class="text-sm text-slate-400 leading-normal mb-0 max-w-sm">
+                                Show API response times, MongoDB connection status, and AI token limits in a floating debug overlay.
+                            </p>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer ml-4 shrink-0">
+                            <input aria-label="Input field"  id="devModeToggle" type="checkbox" class="sr-only peer"/>
+                            <div class="w-14 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[3px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-yellow-500"></div>
+                        </label>
+                    </div>
+
+                    <!-- Feature Flags -->
+                    <div class="flex flex-col gap-4">
+                        <div class="text-sm font-bold text-slate-300 uppercase tracking-wider">Feature Flags</div>
+                        
+                        <div class="flex items-center justify-between gap-4 bg-slate-800/50 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-blue-400 text-lg">analytics</span>
+                                <span class="text-sm font-semibold text-white">AI Sales Predictions</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input aria-label="Input field"  id="flagAISales" type="checkbox" class="sr-only peer" checked/>
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-500"></div>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between gap-4 bg-slate-800/50 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-emerald-400 text-lg">cloud_sync</span>
+                                <span class="text-sm font-semibold text-white">Cloud Sync (MongoDB)</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input aria-label="Input field"  id="flagCloudSync" type="checkbox" class="sr-only peer" checked/>
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                            </label>
+                        </div>
+                        
+                        <div class="flex items-center justify-between gap-4 bg-slate-800/50 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-emerald-400 text-lg">inventory_2</span>
+                                <span class="text-sm font-semibold text-white">AI Restock Intelligence</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input aria-label="Input field"  id="flagRestock" type="checkbox" class="sr-only peer" checked/>
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-4 bg-slate-800/50 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-rose-400 text-lg">person_search</span>
+                                <span class="text-sm font-semibold text-white">Employee AI Performance</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input aria-label="Input field"  id="flagEmpAI" type="checkbox" class="sr-only peer" checked/>
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500"></div>
+                            </label>
+                        </div>
+
+                        <div class="flex items-center justify-between gap-4 bg-slate-800/50 rounded-lg p-4">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-amber-400 text-lg">qr_code</span>
+                                <span class="text-sm font-semibold text-white">Embedded-price Parsing</span>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+                                <input aria-label="Input field"  id="flagEmbeddedPrice" type="checkbox" class="sr-only peer" checked/>
+                                <div class="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="text-center py-8 text-slate-500 text-xs font-semibold">
+            © 2026 Fashion Shaa POS. v5.0.0-ENTERPRISE Edition.
+        </footer>
+    </div>
+    
+    <script src="database.js"></script>
+    <script src="settings.js"></script>
+    <script src="migrate.js"></script>
+</body>
+</html>

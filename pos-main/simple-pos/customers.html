@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Customer Management</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .bg-mesh { background-color: #0f172a; background-image: radial-gradient(at 0% 0%, rgba(220,40,40,0.1) 0px, transparent 50%), radial-gradient(at 100% 100%, rgba(88,28,135,0.15) 0px, transparent 50%); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); z-index: 1000; justify-content: center; align-items: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: rgba(15,23,42,0.97); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 1.75rem; width: 100%; max-width: 520px; animation: slideUp .3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .detail-modal-shell { max-width: 960px; max-height: calc(100vh - 2.5rem); overflow: hidden; }
+        .detail-scroll { overflow-y: auto; max-height: calc(100vh - 12rem); padding-right: 0.25rem; }
+        .profile-section { background: rgba(15,23,42,0.55); border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; padding: 1rem; }
+        .profile-stat { background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 0.9rem; padding: 0.95rem 1rem; }
+        .sale-entry { background: rgba(15,23,42,0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 0.9rem; padding: 0.9rem 1rem; }
+
+        /* Photo Preview */
+        #photoPreview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(220,38,38,0.4); display: none; }
+        .photo-placeholder { width: 100px; height: 100px; border-radius: 50%; background: rgba(220,38,38,0.15); border: 3px dashed rgba(220,38,38,0.4); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: background .2s; }
+        .photo-placeholder:hover { background: rgba(220,38,38,0.25); }
+
+        /* Customer card */
+        .customer-card { background: rgba(30,41,59,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 1.25rem; padding: 1.25rem; transition: all 0.2s; cursor: pointer; }
+        .customer-card:hover { border-color: rgba(220,38,38,0.4); transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+        .customer-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .customer-avatar-placeholder { width: 56px; height: 56px; border-radius: 50%; background: rgba(220,38,38,0.2); border: 2px solid rgba(220,38,38,0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .loyalty-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); overflow: hidden; }
+        .loyalty-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #dc2626, #f97316); transition: width 0.5s ease; }
+        .tier-badge { font-size: 0.6rem; font-weight: 800; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .05em; }
+        .tier-bronze { background: rgba(180,83,9,.3); color: #fb923c; border: 1px solid rgba(180,83,9,.4); }
+        .tier-silver { background: rgba(100,116,139,.3); color: #cbd5e1; border: 1px solid rgba(100,116,139,.4); }
+        .tier-gold { background: rgba(161,130,9,.3); color: #fbbf24; border: 1px solid rgba(161,130,9,.4); }
+        .tier-platinum { background: rgba(88,28,135,.3); color: #c084fc; border: 1px solid rgba(88,28,135,.4); }
+
+        .input-field { background: rgba(15,23,42,0.6); border: 1px solid rgba(255,255,255,0.12); border-radius: .625rem; padding: .625rem 1rem; color: white; outline: none; transition: border-color .2s; width: 100%; }
+        .input-field:focus { border-color: #dc2626; }
+        .input-field::placeholder { color: #475569; }
+        select.input-field option { background: #1e293b; }
+    </style>
+</head>
+<body class="bg-mesh font-display text-slate-100 min-h-screen">
+    <div class="max-w-[1400px] mx-auto px-6 py-8">
+
+        <!-- Header -->
+        <header class="glass-card rounded-xl px-8 py-4 flex items-center justify-between mb-8 shadow-2xl sticky top-4 z-50">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-white text-2xl">group</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight uppercase">Fashion <span class="text-primary">Shaa</span></h1>
+                    <p class="text-xs text-slate-500 font-semibold">Customer Relationship Management</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="index.html" class="flex items-center gap-2 bg-primary hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-lg shadow-primary/20 text-sm">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span> Back to POS
+                </a>
+            </div>
+        </header>
+
+        <!-- Stats Row -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="statsRow">
+            <div class="glass-card p-5 rounded-xl border-l-4 border-primary">
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Total Customers</p>
+                <p id="statTotal" class="text-3xl font-black text-white">0</p>
+            </div>
+            <div class="glass-card p-5 rounded-xl border-l-4 border-secondary">
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Active This Month</p>
+                <p id="statActive" class="text-3xl font-black text-secondary">0</p>
+            </div>
+            <div class="glass-card p-5 rounded-xl border-l-4 border-amber-500">
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Total Points Issued</p>
+                <p id="statPoints" class="text-3xl font-black text-amber-400">0</p>
+            </div>
+            <div class="glass-card p-5 rounded-xl border-l-4 border-emerald-500">
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Platinum Members</p>
+                <p id="statPlatinum" class="text-3xl font-black text-emerald-400">0</p>
+            </div>
+        </div>
+
+        <!-- Search + Add Button -->
+        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <div class="flex-1 glass-card rounded-xl flex items-center px-4 gap-3">
+                <span class="material-symbols-outlined text-slate-400">search</span>
+                <input aria-label="Input field"  id="searchInput" class="bg-transparent border-none outline-none text-white w-full py-3 placeholder:text-slate-500" placeholder="Search by name, phone, or email..." />
+            </div>
+            <button id="addCustomerBtn" onclick="openModal()" class="flex items-center gap-2 bg-primary hover:bg-red-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-primary/20 text-sm whitespace-nowrap">
+                <span class="material-symbols-outlined">person_add</span> Add Customer
+            </button>
+        </div>
+
+        <!-- Customer Cards Grid -->
+        <div id="customersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <div class="col-span-full text-center py-20 text-slate-500 italic">Loading customers...</div>
+        </div>
+    </div>
+
+    <!-- Add / Edit Customer Modal -->
+    <div id="customerModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-5 pb-4 border-b border-slate-700/50">
+                <h2 id="modalTitle" class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">person_add</span> Add New Customer
+                </h2>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+
+            <!-- Photo Upload -->
+            <div class="flex justify-center mb-5">
+                <div id="photoWrap" class="relative">
+                    <div id="photoPlaceholder" class="photo-placeholder" onclick="document.getElementById('photoInput').click()">
+                        <span class="material-symbols-outlined text-primary text-2xl">add_a_photo</span>
+                        <span class="text-xs text-slate-400 mt-1">Add Photo</span>
+                    </div>
+                    <img id="photoPreview" src="" alt="Customer photo" />
+                    <button id="removePhotoBtn" onclick="removePhoto()" class="absolute -top-1 -right-1 w-6 h-6 bg-red-600 rounded-full text-white text-xs hidden flex items-center justify-center">×</button>
+                </div>
+                <input aria-label="Input field"  type="file" id="photoInput" accept="image/*" class="hidden" onchange="handlePhotoUpload(event)" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="col-span-2">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Full Name *</label>
+                    <input aria-label="Input field"  type="text" id="custName" class="input-field" placeholder="e.g. Nimali Perera" />
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Phone *</label>
+                    <input aria-label="Input field"  type="tel" id="custPhone" class="input-field" placeholder="07xxxxxxxx" />
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Email</label>
+                    <input aria-label="Input field"  type="email" id="custEmail" class="input-field" placeholder="email@example.com" />
+                </div>
+                <div class="col-span-2">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Address</label>
+                    <input aria-label="Input field"  type="text" id="custAddress" class="input-field" placeholder="Street, City" />
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Birthday</label>
+                    <input aria-label="Input field"  type="date" id="custBirthday" class="input-field" style="color-scheme: dark;" />
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Loyalty Points</label>
+                    <input aria-label="Input field"  type="number" id="custPoints" class="input-field" value="0" min="0" />
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">Notes</label>
+                    <input aria-label="Input field"  type="text" id="custNotes" class="input-field" placeholder="VIP, Prefers sizes L..." />
+                </div>
+            </div>
+
+            <div class="flex gap-3 mt-2">
+                <button onclick="closeModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl transition-all text-sm">Cancel</button>
+                <button onclick="saveCustomerForm()" class="flex-1 bg-primary hover:bg-red-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-primary/20 transition-all text-sm">
+                    <span id="saveModalLabel">Save Customer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Detail Modal -->
+    <div id="detailModal" class="modal">
+        <div class="modal-content detail-modal-shell">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b border-slate-700/50">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">badge</span> Customer Profile
+                </h2>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            <div id="detailContent" class="detail-scroll"></div>
+            <div class="flex gap-3 mt-4">
+                <button id="detailEditBtn" onclick="editFromDetail()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 rounded-xl text-sm transition-all">Edit Profile</button>
+                <button id="detailDeleteBtn" onclick="deleteFromDetail()" class="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl text-sm transition-all">Delete Customer</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="database.js?v=20260522b"></script>
+    <script src="customers.js?v=20260522b"></script>
+</body>
+</html>

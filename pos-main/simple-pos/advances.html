@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Employee Advances & Deductions</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); backdrop-filter:blur(4px); z-index:1000; justify-content:center; align-items:center; }
+        .modal.active { display:flex; }
+        .modal-content { background:rgba(15,23,42,0.97); border:1px solid rgba(255,255,255,0.1); border-radius:1rem; padding:1.75rem; width:100%; max-width:450px; animation:slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+    </style>
+</head>
+<body class="bg-gradient-mesh font-display text-slate-100 min-h-screen">
+    
+    <div class="max-w-[1200px] mx-auto px-6 py-8">
+        <!-- Header -->
+        <header class="glass-card rounded-xl px-8 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-white text-2xl">account_balance_wallet</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight uppercase">Salary <span class="text-primary">Advances</span></h1>
+                    <p class="text-xs text-slate-400 font-semibold">Track Cash & Goods Taken by Employees</p>
+                </div>
+            </div>
+            <div class="flex gap-3">
+                <a href="employees.html" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all border border-slate-700">
+                    <span class="material-symbols-outlined text-sm">badge</span> Employees
+                </a>
+                <a href="index.html" class="flex items-center gap-2 bg-primary hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span> Back to POS
+                </a>
+            </div>
+        </header>
+
+        <!-- Stats & Actions -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="glass-card rounded-xl p-6">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Total Pending Advances</h3>
+                <p id="statPendingTotal" class="text-3xl font-black text-amber-500">Rs.0.00</p>
+            </div>
+            <div class="glass-card rounded-xl p-6">
+                <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Total Deducted (This Month)</h3>
+                <p id="statDeductedTotal" class="text-3xl font-black text-emerald-500">Rs.0.00</p>
+            </div>
+            <div class="glass-card rounded-xl p-6 flex items-center justify-center">
+                <button onclick="openAdvanceModal()" class="w-full h-full flex flex-col items-center justify-center gap-2 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary rounded-xl transition-colors">
+                    <span class="material-symbols-outlined text-3xl">add_circle</span>
+                    <span class="font-bold">Record New Advance</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Table -->
+        <div class="glass-card rounded-xl overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-700/50 flex justify-between items-center bg-slate-900/50">
+                <h2 class="text-lg font-bold flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">history</span> Advance History
+                </h2>
+                <div class="flex gap-3">
+                    <select aria-label="Select field"  id="filterStatus" class="input-field py-1.5 px-3 text-xs w-auto" onchange="loadAdvances()">
+                        <option value="all" selected>All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="deducted">Deducted</option>
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-800/80 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-700">
+                            <th class="px-6 py-4 font-bold">Date</th>
+                            <th class="px-6 py-4 font-bold">Employee</th>
+                            <th class="px-6 py-4 font-bold">Type</th>
+                            <th class="px-6 py-4 font-bold text-right">Amount (Rs.)</th>
+                            <th class="px-6 py-4 font-bold">Status</th>
+                            <th class="px-6 py-4 font-bold">Notes</th>
+                            <th class="px-6 py-4 font-bold text-center">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="advancesTableBody" class="text-sm divide-y divide-slate-700/30">
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Record Advance Modal -->
+    <div id="advanceModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-5 pb-4 border-b border-slate-700/50">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">add_card</span> Record Advance
+                </h2>
+                <button onclick="closeAdvanceModal()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Employee *</label>
+                    <select aria-label="Select field"  id="advEmployee" class="input-field" style="color-scheme:dark;">
+                        <option value="">Select Employee...</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Type *</label>
+                        <select aria-label="Select field"  id="advType" class="input-field" style="color-scheme:dark;">
+                            <option value="cash">Cash Advance</option>
+                            <option value="goods">Clothing / Goods</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Date *</label>
+                        <input aria-label="Input field"  type="date" id="advDate" class="input-field" style="color-scheme:dark;" />
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Value / Amount (Rs.) *</label>
+                    <input aria-label="Input field"  type="number" id="advAmount" class="input-field text-lg font-bold text-amber-400" placeholder="0.00" min="0" step="0.01" />
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes / Description</label>
+                    <input aria-label="Input field"  type="text" id="advNotes" class="input-field" placeholder="e.g. Early salary request, Took 2 T-shirts" />
+                </div>
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeAdvanceModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white font-bold py-3 rounded-xl text-sm transition-all">Cancel</button>
+                <button onclick="saveAdvanceForm()" class="flex-1 bg-primary hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm shadow-lg shadow-primary/20 transition-all">Save Advance</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dexie/Database Script -->
+    <script src="database.js?v=20260522c"></script>
+    <script src="advances.js?v=20260522c"></script>
+</body>
+</html>

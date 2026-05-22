@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+
+    <meta name="description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:title" content="Fashion Shaa POS">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System">
+    <meta property="og:type" content="website">
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Returns & Refunds</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        body{font-family:'Inter',sans-serif;}
+        .glass-card{background:rgba(30,41,59,0.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.1);}
+        .bg-mesh{background-color:#0f172a;background-image:radial-gradient(at 0% 0%,rgba(220,40,40,0.1) 0,transparent 50%),radial-gradient(at 100% 100%,rgba(88,28,135,0.15) 0,transparent 50%);}
+        .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:center;}
+        .modal.active{display:flex;}
+        .modal-content{background:rgba(15,23,42,.97);border:1px solid rgba(255,255,255,.1);border-radius:1rem;padding:1.75rem;width:100%;max-width:580px;animation:slideUp .3s ease;}
+        @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+        .input-field{background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.12);border-radius:.5rem;padding:.65rem 1rem;color:white;outline:none;transition:border-color .2s;width:100%;}
+        .input-field:focus{border-color:#dc2626;}
+        .input-field::placeholder{color:#475569;}
+        .status-badge{padding:2px 10px;border-radius:99px;font-size:.65rem;font-weight:800;text-transform:uppercase;}
+        .status-processed{background:rgba(16,185,129,.2);color:#10b981;border:1px solid rgba(16,185,129,.3);}
+        .status-pending{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid rgba(245,158,11,.3);}
+    </style>
+</head>
+<body class="bg-mesh font-display text-slate-100 min-h-screen">
+<div class="max-w-[1300px] mx-auto px-6 py-8">
+
+    <!-- Header -->
+    <header class="glass-card rounded-xl px-8 py-4 flex items-center justify-between mb-8 shadow-2xl">
+        <div class="flex items-center gap-3">
+            <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+                <span class="material-symbols-outlined text-white text-2xl">assignment_return</span>
+            </div>
+            <div>
+                <h1 class="text-xl font-black tracking-tight uppercase">Fashion <span class="text-primary">Shaa</span></h1>
+                <p class="text-xs text-slate-500 font-semibold">Returns & Refunds Management</p>
+            </div>
+        </div>
+        <a href="index.html" class="flex items-center gap-2 bg-primary hover:bg-red-700 text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all shadow-lg shadow-primary/20">
+            <span class="material-symbols-outlined text-sm">arrow_back</span> Back to POS
+        </a>
+    </header>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div class="glass-card p-5 rounded-xl border-l-4 border-primary">
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Total Returns</p>
+            <p id="statReturns" class="text-3xl font-black text-white">0</p>
+        </div>
+        <div class="glass-card p-5 rounded-xl border-l-4 border-red-500">
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Total Refunded</p>
+            <p id="statRefunded" class="text-3xl font-black text-red-400">Rs.0</p>
+        </div>
+        <div class="glass-card p-5 rounded-xl border-l-4 border-amber-500">
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">This Month</p>
+            <p id="statMonth" class="text-3xl font-black text-amber-400">0</p>
+        </div>
+        <div class="glass-card p-5 rounded-xl border-l-4 border-secondary">
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-1">Avg. Return Value</p>
+            <p id="statAvg" class="text-3xl font-black text-secondary">Rs.0</p>
+        </div>
+    </div>
+
+    <!-- Look up sale + Process return -->
+    <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-6 mb-6">
+        <!-- Lookup Panel -->
+        <div class="glass-card p-6 rounded-xl">
+            <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-primary">manage_search</span> Look Up Sale
+            </h2>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Receipt No. or Sale ID</label>
+                    <input aria-label="Input field"  type="text" id="saleIdInput" class="input-field" placeholder="SALE-ABC123 or full sale ID" autocomplete="off" spellcheck="false" />
+                    <p class="text-xs text-slate-500 mt-2 leading-relaxed">Use the receipt number printed on the bill, or the full Sale ID from Invoice History.</p>
+                </div>
+                <button onclick="lookupSale()" class="w-full bg-primary hover:bg-red-700 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-sm">search</span> Find Sale
+                </button>
+            </div>
+
+            <!-- Sale Preview -->
+            <div id="salePreview" class="mt-4 hidden">
+                <div class="border-t border-slate-700/50 pt-4">
+                    <h3 class="text-sm font-bold text-slate-300 mb-3">Sale Details</h3>
+                    <div id="salePreviewContent" class="space-y-2 text-sm"></div>
+                    <button id="processReturnBtn" onclick="openReturnModal()" class="w-full mt-4 bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-sm">assignment_return</span> Process Return
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Return History Table -->
+        <div class="glass-card rounded-xl overflow-hidden">
+            <div class="p-5 border-b border-slate-700/50 flex items-center justify-between">
+                <h2 class="font-bold flex items-center gap-2">
+                    <span class="material-symbols-outlined text-primary">history</span> Return History
+                </h2>
+                <input aria-label="Input field"  type="text" id="returnSearch" class="bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-primary text-white placeholder:text-slate-500 w-56" placeholder="Search..." oninput="filterReturns(this.value)" />
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-800/40 text-slate-400 text-xs uppercase tracking-wider">
+                        <tr>
+                            <th class="px-5 py-3">Return ID</th>
+                            <th class="px-5 py-3">Receipt / Sale</th>
+                            <th class="px-5 py-3">Date</th>
+                            <th class="px-5 py-3">Employee</th>
+                            <th class="px-5 py-3 text-right">Refund</th>
+                            <th class="px-5 py-3 text-center">Status</th>
+                            <th class="px-5 py-3">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnsTableBody" class="divide-y divide-slate-700/30">
+                        <tr><td colspan="7" class="px-5 py-10 text-center text-slate-500 italic">No returns recorded</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Process Return Modal -->
+<div id="returnModal" class="modal">
+    <div class="modal-content">
+        <div class="flex justify-between items-center mb-5 pb-4 border-b border-slate-700/50">
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-amber-400">assignment_return</span> Process Return
+            </h2>
+            <button onclick="closeReturnModal()" class="text-slate-400 hover:text-white text-2xl leading-none">&times;</button>
+        </div>
+
+        <div id="returnItemsSection" class="mb-4">
+            <p class="text-sm font-bold text-slate-300 mb-3">Select Items to Return:</p>
+            <div id="returnItemsList" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Refund Amount</label>
+                <div class="flex items-center gap-2 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2.5">
+                    <span class="text-slate-400 font-semibold">Rs.</span>
+                    <input aria-label="Input field"  type="number" id="refundAmount" class="bg-transparent border-none outline-none text-white font-bold text-lg w-full" placeholder="0.00" step="0.01" />
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Reason</label>
+                <select aria-label="Select field"  id="returnReason" class="input-field" style="color-scheme:dark;">
+                    <option value="defective">Defective / Damaged</option>
+                    <option value="wrong_size">Wrong Size</option>
+                    <option value="changed_mind">Customer Changed Mind</option>
+                    <option value="wrong_item">Wrong Item Given</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Employee ID</label>
+            <input aria-label="Input field"  type="number" id="returnEmpId" class="input-field" placeholder="e.g. 1" min="1" />
+        </div>
+        <div class="mb-4">
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Notes</label>
+            <input aria-label="Input field"  type="text" id="returnNotes" class="input-field" placeholder="Additional notes..." />
+        </div>
+
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 mb-4 text-sm text-amber-200">
+            <span class="material-symbols-outlined text-amber-400 text-sm align-middle">info</span>
+            Refund will be processed in cash. Ensure items are collected back and original receipt verified.
+        </div>
+
+        <div class="flex gap-3">
+            <button onclick="closeReturnModal()" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 rounded-xl text-sm transition-all">Cancel</button>
+            <button onclick="confirmReturn()" class="flex-1 bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg">Confirm Return</button>
+        </div>
+    </div>
+</div>
+
+<script src="database.js"></script>
+<script src="returns.js"></script>
+</body>
+</html>
