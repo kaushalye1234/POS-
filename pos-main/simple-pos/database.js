@@ -14,7 +14,196 @@ const LOCAL_API_CANDIDATES = [
 ];
 const API_HEALTHCHECK_PATH = '/api/health';
 const API_PROBE_TIMEOUT_MS = 2500;
+const SALES_SYNC_EVENT_KEY = 'pos_last_sale_event';
+const SALES_SYNC_CHANNEL = 'fashion-shaa-pos-sync';
+const WINDOW_NAME_STORAGE_PREFIX = '__fashion_shaa_pos_storage__=';
+const BUSINESS_TIME_ZONE = 'Asia/Colombo';
 let resolvedApiOriginPromise = null;
+let resolvedStorageBackend = null;
+const inMemoryStorage = Object.create(null);
+
+function getDateTimeFormatterParts(formatter, date = new Date()) {
+    const values = {};
+    for (const part of formatter.formatToParts(date)) {
+        if (part.type !== 'literal') {
+            values[part.type] = part.value;
+        }
+    }
+    return values;
+}
+
+function formatBusinessDate(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: BUSINESS_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const parts = getDateTimeFormatterParts(formatter, date);
+    return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function formatBusinessTime(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: BUSINESS_TIME_ZONE,
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    const parts = getDateTimeFormatterParts(formatter, date);
+    return `${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
+function getBrowserStorage(type) {
+    try {
+        return typeof window !== 'undefined' ? window[type] : null;
+    } catch {
+        return null;
+    }
+}
+
+function canUseBrowserStorage(type) {
+    const storage = getBrowserStorage(type);
+    if (!storage) return false;
+
+    try {
+        const probeKey = '__fashion_shaa_storage_probe__';
+        storage.setItem(probeKey, '1');
+        storage.removeItem(probeKey);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function readWindowNameStorage() {
+    if (typeof window === 'undefined') return {};
+
+    try {
+        const rawWindowName = String(window.name || '');
+        const prefixIndex = rawWindowName.indexOf(WINDOW_NAME_STORAGE_PREFIX);
+        if (prefixIndex === -1) return {};
+
+        const payload = rawWindowName.slice(prefixIndex + WINDOW_NAME_STORAGE_PREFIX.length);
+        const parsed = JSON.parse(payload);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+        return {};
+    }
+}
+
+function writeWindowNameStorage(store) {
+    if (typeof window === 'undefined') return false;
+
+    try {
+        const rawWindowName = String(window.name || '');
+        const prefixIndex = rawWindowName.indexOf(WINDOW_NAME_STORAGE_PREFIX);
+        const preservedPrefix = prefixIndex === -1 ? rawWindowName : rawWindowName.slice(0, prefixIndex);
+        window.name = `${preservedPrefix}${WINDOW_NAME_STORAGE_PREFIX}${JSON.stringify(store)}`;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function detectStorageBackend() {
+    if (canUseBrowserStorage('localStorage')) return 'localStorage';
+    if (canUseBrowserStorage('sessionStorage')) return 'sessionStorage';
+    if (typeof window !== 'undefined') return 'windowName';
+    return 'memory';
+}
+
+function getStorageBackend() {
+    if (!resolvedStorageBackend) {
+        resolvedStorageBackend = detectStorageBackend();
+    }
+    return resolvedStorageBackend;
+}
+
+function resetStorageBackend() {
+    resolvedStorageBackend = null;
+}
+
+const safeStorage = {
+    getItem(key) {
+        const normalizedKey = String(key);
+        const backend = getStorageBackend();
+
+        try {
+            if (backend === 'windowName') {
+                const store = readWindowNameStorage();
+                return Object.prototype.hasOwnProperty.call(store, normalizedKey) ? store[normalizedKey] : null;
+            }
+
+            if (backend === 'memory') {
+                return Object.prototype.hasOwnProperty.call(inMemoryStorage, normalizedKey) ? inMemoryStorage[normalizedKey] : null;
+            }
+
+            const storage = getBrowserStorage(backend);
+            return storage ? storage.getItem(normalizedKey) : null;
+        } catch {
+            resetStorageBackend();
+            if (backend === 'memory') return null;
+            return safeStorage.getItem(normalizedKey);
+        }
+    },
+
+    setItem(key, value) {
+        const normalizedKey = String(key);
+        const normalizedValue = String(value);
+        const backend = getStorageBackend();
+
+        try {
+            if (backend === 'windowName') {
+                const store = readWindowNameStorage();
+                store[normalizedKey] = normalizedValue;
+                return writeWindowNameStorage(store);
+            }
+
+            if (backend === 'memory') {
+                inMemoryStorage[normalizedKey] = normalizedValue;
+                return true;
+            }
+
+            const storage = getBrowserStorage(backend);
+            if (!storage) return false;
+            storage.setItem(normalizedKey, normalizedValue);
+            return true;
+        } catch {
+            resetStorageBackend();
+            if (backend === 'memory') return false;
+            return safeStorage.setItem(normalizedKey, normalizedValue);
+        }
+    },
+
+    removeItem(key) {
+        const normalizedKey = String(key);
+        const backend = getStorageBackend();
+
+        try {
+            if (backend === 'windowName') {
+                const store = readWindowNameStorage();
+                delete store[normalizedKey];
+                return writeWindowNameStorage(store);
+            }
+
+            if (backend === 'memory') {
+                delete inMemoryStorage[normalizedKey];
+                return true;
+            }
+
+            const storage = getBrowserStorage(backend);
+            if (!storage) return false;
+            storage.removeItem(normalizedKey);
+            return true;
+        } catch {
+            resetStorageBackend();
+            if (backend === 'memory') return false;
+            return safeStorage.removeItem(normalizedKey);
+        }
+    }
+};
 
 // ============================================
 // API Origin Management
@@ -72,7 +261,7 @@ function normalizeApiOrigin(origin) {
 
 function getApiOrigin() {
     try {
-        const saved = localStorage.getItem(API_ORIGIN_KEY);
+        const saved = safeStorage.getItem(API_ORIGIN_KEY);
         return normalizeApiOrigin(saved);
     } catch {
         return DEFAULT_API_ORIGIN;
@@ -81,7 +270,7 @@ function getApiOrigin() {
 
 function setApiOrigin(origin) {
     const normalized = normalizeApiOrigin(origin);
-    localStorage.setItem(API_ORIGIN_KEY, normalized);
+    safeStorage.setItem(API_ORIGIN_KEY, normalized);
     return normalized;
 }
 
@@ -91,7 +280,7 @@ function getApiBase() {
 
 function getSavedApiOrigin() {
     try {
-        const saved = localStorage.getItem(API_ORIGIN_KEY);
+        const saved = safeStorage.getItem(API_ORIGIN_KEY);
         return saved ? normalizeApiOrigin(saved) : '';
     } catch {
         return '';
@@ -117,6 +306,12 @@ function pushApiCandidate(list, origin) {
     } catch {
         // Ignore invalid candidates.
     }
+}
+
+function getPreferredFallbackApiOrigin(candidates, savedOrigin, defaultOrigin) {
+    const firstLoopbackCandidate = candidates.find((candidate) => isLoopbackOrigin(candidate));
+    if (firstLoopbackCandidate) return firstLoopbackCandidate;
+    return savedOrigin || defaultOrigin;
 }
 
 async function probeApiOrigin(origin) {
@@ -148,18 +343,15 @@ async function resolveApiOrigin({ forceRefresh = false } = {}) {
         const defaultOrigin = normalizeApiOrigin(DEFAULT_API_ORIGIN);
         const candidates = [];
 
-        pushApiCandidate(candidates, savedOrigin || defaultOrigin);
-
-        const shouldDiscoverLoopback = !savedOrigin || isLoopbackOrigin(savedOrigin);
-        if (shouldDiscoverLoopback) {
-            LOCAL_API_CANDIDATES.forEach((candidate) => pushApiCandidate(candidates, candidate));
-        }
+        pushApiCandidate(candidates, savedOrigin);
+        pushApiCandidate(candidates, defaultOrigin);
+        LOCAL_API_CANDIDATES.forEach((candidate) => pushApiCandidate(candidates, candidate));
 
         for (const candidate of candidates) {
             if (await probeApiOrigin(candidate)) {
                 try {
                     if (savedOrigin !== candidate) {
-                        localStorage.setItem(API_ORIGIN_KEY, candidate);
+                        safeStorage.setItem(API_ORIGIN_KEY, candidate);
                     }
                 } catch {
                     // Ignore storage errors and continue with the resolved candidate.
@@ -168,10 +360,34 @@ async function resolveApiOrigin({ forceRefresh = false } = {}) {
             }
         }
 
-        return savedOrigin || defaultOrigin;
+        return getPreferredFallbackApiOrigin(candidates, savedOrigin, defaultOrigin);
     })();
 
     return resolvedApiOriginPromise;
+}
+
+function isNetworkFetchError(error) {
+    if (!error) return false;
+
+    const message = String(error.message || error || '').toLowerCase();
+    return error.name === 'TypeError'
+        || message.includes('failed to fetch')
+        || message.includes('networkerror')
+        || message.includes('load failed');
+}
+
+async function fetchJsonFromApi(apiOrigin, endpoint, options = {}) {
+    const response = await fetch(`${apiOrigin}/api${endpoint}`, options);
+    const data = await response.json().catch(() => ({}));
+    return { response, data };
+}
+
+async function retryWithFreshApiOrigin(requestFn, initialOrigin) {
+    const refreshedOrigin = await resolveApiOrigin({ forceRefresh: true });
+    if (refreshedOrigin === initialOrigin) {
+        return null;
+    }
+    return requestFn(refreshedOrigin);
 }
 
 function getSaleRecordId(sale) {
@@ -187,6 +403,37 @@ function getSaleReceiptId(sale) {
 
     const recordId = getSaleRecordId(sale);
     return recordId ? `SALE-${recordId.slice(-6).toUpperCase()}` : '';
+}
+
+function notifySaleRecorded(sale) {
+    if (typeof window === 'undefined') return;
+
+    const payload = {
+        type: 'sale-recorded',
+        at: Date.now(),
+        sale: {
+            id: sale?._id || sale?.id || null,
+            saleDate: sale?.saleDate || '',
+            saleTime: sale?.saleTime || '',
+            totalAmount: Number(sale?.totalAmount || 0) || 0
+        }
+    };
+
+    try {
+        safeStorage.setItem(SALES_SYNC_EVENT_KEY, JSON.stringify(payload));
+    } catch {
+        // Ignore storage errors and continue with best-effort realtime sync.
+    }
+
+    try {
+        if ('BroadcastChannel' in window) {
+            const channel = new BroadcastChannel(SALES_SYNC_CHANNEL);
+            channel.postMessage(payload);
+            channel.close();
+        }
+    } catch {
+        // Ignore broadcast errors — analytics still has focus/poll refreshes.
+    }
 }
 
 function normalizeSaleLookupValue(value) {
@@ -220,6 +467,13 @@ if (typeof window !== 'undefined') {
         getApiOrigin,
         setApiOrigin,
         getApiBase,
+        resolveApiOrigin,
+        storage: safeStorage,
+        BUSINESS_TIME_ZONE,
+        formatBusinessDate,
+        formatBusinessTime,
+        SALES_SYNC_EVENT_KEY,
+        SALES_SYNC_CHANNEL,
         getSaleRecordId,
         getSaleReceiptId,
         normalizeSaleLookupValue,
@@ -232,16 +486,16 @@ if (typeof window !== 'undefined') {
 // ============================================
 
 function getAuthToken() {
-    return localStorage.getItem(AUTH_TOKEN_KEY);
+    return safeStorage.getItem(AUTH_TOKEN_KEY);
 }
 
 function setAuthToken(token) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    safeStorage.setItem(AUTH_TOKEN_KEY, token);
 }
 
 function getAuthUser() {
     try {
-        const raw = localStorage.getItem(AUTH_USER_KEY);
+        const raw = safeStorage.getItem(AUTH_USER_KEY);
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
@@ -249,7 +503,7 @@ function getAuthUser() {
 }
 
 function setAuthUser(user) {
-    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    safeStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
 }
 
 function isAuthenticated() {
@@ -265,43 +519,96 @@ function isAuthenticated() {
 }
 
 async function loginUser(username, password) {
-    const apiOrigin = await resolveApiOrigin();
-    const result = await fetch(`${apiOrigin}/api/auth/login`, {
+    const requestOptions = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-    });
-    const data = await result.json();
-    if (!result.ok) throw new Error(data.error || 'Login failed');
-    setAuthToken(data.token);
-    setAuthUser(data.user);
-    return data;
+        body: JSON.stringify({ username, password }),
+        cache: 'no-store'
+    };
+
+    const runLogin = async (apiOrigin) => {
+        const { response, data } = await fetchJsonFromApi(apiOrigin, '/auth/login', requestOptions);
+        if (!response.ok) throw new Error(data.error || 'Login failed');
+        setAuthToken(data.token);
+        setAuthUser(data.user);
+        return data;
+    };
+
+    const apiOrigin = await resolveApiOrigin();
+
+    try {
+        return await runLogin(apiOrigin);
+    } catch (error) {
+        if (!isNetworkFetchError(error)) {
+            throw error;
+        }
+
+        const retried = await retryWithFreshApiOrigin(runLogin, apiOrigin);
+        if (retried) {
+            return retried;
+        }
+
+        throw new Error('Could not reach the POS server. Please make sure the local backend is running.');
+    }
 }
 
 async function registerUser(username, password, role = 'cashier', employeeId = null) {
     const headers = { 'Content-Type': 'application/json' };
     const token = getAuthToken();
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const apiOrigin = await resolveApiOrigin();
-
-    const result = await fetch(`${apiOrigin}/api/auth/register`, {
+    const requestOptions = {
         method: 'POST',
         headers,
-        body: JSON.stringify({ username, password, role, employeeId })
-    });
-    const data = await result.json();
-    if (!result.ok) throw new Error(data.error || 'Registration failed');
-    setAuthToken(data.token);
-    setAuthUser(data.user);
-    return data;
+        body: JSON.stringify({ username, password, role, employeeId }),
+        cache: 'no-store'
+    };
+
+    const runRegistration = async (apiOrigin) => {
+        const { response, data } = await fetchJsonFromApi(apiOrigin, '/auth/register', requestOptions);
+        if (!response.ok) throw new Error(data.error || 'Registration failed');
+        setAuthToken(data.token);
+        setAuthUser(data.user);
+        return data;
+    };
+
+    const apiOrigin = await resolveApiOrigin();
+
+    try {
+        return await runRegistration(apiOrigin);
+    } catch (error) {
+        if (!isNetworkFetchError(error)) {
+            throw error;
+        }
+
+        const retried = await retryWithFreshApiOrigin(runRegistration, apiOrigin);
+        if (retried) {
+            return retried;
+        }
+
+        throw new Error('Could not reach the POS server. Please make sure the local backend is running.');
+    }
 }
 
 function logoutUser() {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_KEY);
+    safeStorage.removeItem(AUTH_TOKEN_KEY);
+    safeStorage.removeItem(AUTH_USER_KEY);
     // Redirect to login if a login page exists
     if (typeof showLoginScreen === 'function') {
         showLoginScreen();
+        return;
+    }
+
+    if (typeof window !== 'undefined') {
+        const targetUrl = new URL('index.html', window.location.href).href;
+
+        if (window.top && window.top !== window) {
+            window.top.location.replace(targetUrl);
+            return;
+        }
+
+        if (!/\/index\.html(?:$|\?)/.test(window.location.pathname + window.location.search)) {
+            window.location.replace(targetUrl);
+        }
     }
 }
 
@@ -328,7 +635,8 @@ if (typeof window !== 'undefined') {
     Object.assign(window.POS_API, {
         getAuthToken, setAuthToken, getAuthUser, setAuthUser,
         isAuthenticated, loginUser, registerUser, logoutUser,
-        getSystemUsers, createSystemUserAccount, updateSystemUserAccount
+        getSystemUsers, createSystemUserAccount, updateSystemUserAccount,
+        resolveApiOrigin
     });
 }
 
@@ -338,33 +646,60 @@ if (typeof window !== 'undefined') {
 
 async function fetchAPI(endpoint, options = {}) {
     try {
-        if (options.body && typeof options.body === 'object') {
-            options.body = JSON.stringify(options.body);
-            options.headers = { ...options.headers, 'Content-Type': 'application/json' };
+        const requestOptions = { ...options };
+
+        if (requestOptions.body && typeof requestOptions.body === 'object') {
+            requestOptions.body = JSON.stringify(requestOptions.body);
+            requestOptions.headers = { ...requestOptions.headers, 'Content-Type': 'application/json' };
         }
 
         // Inject JWT token into every request
         const token = getAuthToken();
         if (token) {
-            options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+            requestOptions.headers = { ...requestOptions.headers, 'Authorization': `Bearer ${token}` };
         }
+
+        requestOptions.headers = {
+            Accept: 'application/json',
+            ...requestOptions.headers
+        };
+
+        if (!requestOptions.cache) {
+            requestOptions.cache = 'no-store';
+        }
+
+        const runRequest = async (apiOrigin) => {
+            const { response, data } = await fetchJsonFromApi(apiOrigin, endpoint, requestOptions);
+
+            if (response.status === 401) {
+                console.warn('Auth expired:', data.error);
+                logoutUser();
+                throw new Error(data.error || 'Session expired. Please login again.');
+            }
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${data.error || response.statusText}`);
+            }
+
+            return data;
+        };
 
         const apiOrigin = await resolveApiOrigin();
-        const response = await fetch(`${apiOrigin}/api${endpoint}`, options);
 
-        // Handle 401 — token expired or invalid
-        if (response.status === 401) {
-            const err = await response.json().catch(() => ({}));
-            console.warn('Auth expired:', err.error);
-            logoutUser();
-            throw new Error(err.error || 'Session expired. Please login again.');
-        }
+        try {
+            return await runRequest(apiOrigin);
+        } catch (error) {
+            if (!isNetworkFetchError(error)) {
+                throw error;
+            }
 
-        if (!response.ok) {
-            const err = await response.json().catch(() => ({}));
-            throw new Error(`API Error: ${err.error || response.statusText}`);
+            const retried = await retryWithFreshApiOrigin(runRequest, apiOrigin);
+            if (retried) {
+                return retried;
+            }
+
+            throw new Error('Could not reach the POS server. Please make sure the local backend is running.');
         }
-        return await response.json();
     } catch (e) {
         console.error(`API Error on ${endpoint}:`, e);
         throw e;
@@ -375,12 +710,39 @@ if (typeof window !== 'undefined') {
     Object.assign(window.POS_API, { fetchAPI });
 }
 
-let db = true; // Mock db reference so app.js "if(db)" checks pass
+let db = true; // Legacy compatibility flag for older POS checks
+let databaseReadyPromise = null;
 
 async function initDatabase() {
     const apiOrigin = await resolveApiOrigin();
     console.log(`MongoDB API connected via database.js wrapper. (${apiOrigin})`);
     return Promise.resolve();
+}
+
+function whenDatabaseReady() {
+    if (!databaseReadyPromise) {
+        databaseReadyPromise = initDatabase()
+            .then(() => {
+                db = true;
+                if (typeof window !== 'undefined') {
+                    window.db = true;
+                    window.POS_API.databaseReady = true;
+                    delete window.POS_API.databaseReadyError;
+                }
+                return true;
+            })
+            .catch((error) => {
+                db = false;
+                if (typeof window !== 'undefined') {
+                    window.db = false;
+                    window.POS_API.databaseReady = false;
+                    window.POS_API.databaseReadyError = error?.message || String(error);
+                }
+                throw error;
+            });
+    }
+
+    return databaseReadyPromise;
 }
 
 // ==========================================
@@ -389,8 +751,8 @@ async function initDatabase() {
 
 async function saveSale(employeeId, totalAmount, amountReceived, changeAmount, items, discount = 0, customerId = null, customerName = null) {
     const now = new Date();
-    const saleDate = now.toISOString().split('T')[0];
-    const saleTime = now.toTimeString().split(' ')[0];
+    const saleDate = formatBusinessDate(now);
+    const saleTime = formatBusinessTime(now);
 
     const sale = {
         employeeId: employeeId.toString(),
@@ -416,7 +778,9 @@ async function saveSale(employeeId, totalAmount, amountReceived, changeAmount, i
         }))
     };
 
-    return await fetchAPI('/sales', { method: 'POST', body: sale });
+    const savedSale = await fetchAPI('/sales', { method: 'POST', body: sale });
+    notifySaleRecorded(savedSale);
+    return savedSale;
 }
 
 async function getAllSales(dateFilter) {
@@ -448,6 +812,15 @@ async function getSaleItemsBySaleId(saleId) {
 async function getSalesByDateRange(startDate, endDate) {
     const sales = await getAllSales();
     return sales.filter(s => s.saleDate >= startDate && s.saleDate <= endDate);
+}
+
+async function updateSaleRecord(saleId, updates) {
+    const updatedSale = await fetchAPI(`/sales/${encodeURIComponent(saleId)}`, {
+        method: 'PUT',
+        body: updates
+    });
+    notifySaleRecorded(updatedSale);
+    return updatedSale;
 }
 
 async function getSalesByEmployee(employeeId) {
@@ -612,7 +985,7 @@ function renderBarcodePng(text, symbology = 'code128', scale = 3, height = 12, i
 // ==========================================
 // Note: We perform filtering client-side here to maintain API compatibility
 function getTodaySales() {
-    const today = new Date().toISOString().split('T')[0];
+    const today = formatBusinessDate(new Date());
     return getSalesByDateRange(today, today);
 }
 function getWeekSales() {
@@ -621,7 +994,7 @@ function getWeekSales() {
     monday.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
     const sunday = new Date(monday);
     sunday.setDate(monday.getDate() + 6);
-    return getSalesByDateRange(monday.toISOString().split('T')[0], sunday.toISOString().split('T')[0]);
+    return getSalesByDateRange(formatBusinessDate(monday), formatBusinessDate(sunday));
 }
 function getYearSales() {
     const now = new Date();
@@ -1078,8 +1451,29 @@ function runMongoSync({ direction = 'active-to-standby', collections = null } = 
 
 if (typeof window !== 'undefined') {
     Object.assign(window.POS_API, {
+        fetchAPI,
+        initDatabase,
+        whenDatabaseReady,
+        saveSale,
+        getAllSales,
+        getInventoryItem,
+        addLoyaltyPoints,
         getSyncStatus,
         runMongoSync
+    });
+
+    Object.assign(window, {
+        db,
+        fetchAPI,
+        initDatabase,
+        saveSale,
+        getAllSales,
+        getInventoryItem,
+        addLoyaltyPoints
+    });
+
+    void whenDatabaseReady().catch((error) => {
+        console.warn('POS database wrapper failed to initialize:', error);
     });
 }
 

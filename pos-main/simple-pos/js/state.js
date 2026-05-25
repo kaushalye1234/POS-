@@ -1,6 +1,24 @@
+function getStorage() {
+    return window.POS_API?.storage || {
+        getItem(key) {
+            try {
+                return window.localStorage?.getItem(key) ?? null;
+            } catch {
+                return null;
+            }
+        }
+    };
+}
+
+function getStoredFlag(key, fallback = false) {
+    const value = getStorage().getItem(key);
+    if (value == null) return fallback;
+    return value === 'true';
+}
+
 export const state = {
-    testingMode: localStorage.getItem('pos_testing_mode') === 'true',
-    enableKeyboardShortcuts: localStorage.getItem('enableKeyboardShortcuts') !== 'false',
+    testingMode: getStoredFlag('pos_testing_mode', false),
+    enableKeyboardShortcuts: getStorage().getItem('enableKeyboardShortcuts') !== 'false',
     
     // Calculator State
     currentPrice: '0',
@@ -17,6 +35,7 @@ export const state = {
     discountRulesCache: [],
     selectedDiscountRuleId: '',
     selectedDiscountValue: null,
+    pendingPrintReceipt: null,
     
     // Item Selection State
     pendingItemToAdd: null,

@@ -6,9 +6,11 @@ let allSales = [];
 let allEmployees = [];
 let filteredSales = [];
 let currentViewingSaleId = null;
+let currentViewingSale = null;
 
 function escHtml(text) { const d = document.createElement('div'); d.textContent = text||''; return d.innerHTML; }
 function formatCurrency(amt) { return 'Rs.' + parseFloat(amt||0).toLocaleString('en-LK', {minimumFractionDigits:2,maximumFractionDigits:2}); }
+function formatReceiptAmount(amt) { return parseFloat(amt||0).toLocaleString('en-LK', {minimumFractionDigits:2,maximumFractionDigits:2}); }
 function formatDateStr(isoStr) { 
     if(!isoStr) return '-'; 
     const d = new Date(isoStr); 
@@ -31,12 +33,81 @@ function setTextIfPresent(id, value) {
     if (element) element.innerText = value;
 }
 
+function setSaleAnnotationStatus(message = '', tone = 'muted') {
+    const element = document.getElementById('saleAnnotationStatus');
+    if (!element) return;
+
+    element.textContent = message;
+    element.className = 'mt-3 text-xs font-semibold';
+
+    if (tone === 'success') {
+        element.classList.add('text-emerald-400');
+    } else if (tone === 'error') {
+        element.classList.add('text-rose-400');
+    } else {
+        element.classList.add('text-slate-400');
+    }
+}
+
 function formatDateInputValue(date) {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+}
+
+function focusDateRangeFilters() {
+    const filtersCard = document.getElementById('dateRangeFiltersCard');
+    const startInput = document.getElementById('filterStartDate');
+    if (filtersCard) {
+        filtersCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        filtersCard.classList.add('ring-2', 'ring-primary/60');
+        window.setTimeout(() => {
+            filtersCard.classList.remove('ring-2', 'ring-primary/60');
+        }, 1600);
+    }
+    startInput?.focus();
+}
+
+function applyDateRangeFilters() {
+    filterInvoices();
+}
+
+function setDateRangePreset(preset) {
+    const startInput = document.getElementById('filterStartDate');
+    const endInput = document.getElementById('filterEndDate');
+    if (!startInput || !endInput) return;
+
+    const latestTimestamp = allSales.length > 0 ? allSales[0].timestamp : Date.now();
+    const anchorDate = new Date(latestTimestamp);
+    const endDate = new Date(anchorDate);
+    const startDate = new Date(anchorDate);
+
+    switch (preset) {
+        case 'today':
+            break;
+        case '7days':
+            startDate.setDate(anchorDate.getDate() - 6);
+            break;
+        case '30days':
+            startDate.setDate(anchorDate.getDate() - 29);
+            break;
+        case 'month':
+            startDate.setDate(1);
+            break;
+        case 'all':
+            startInput.value = '';
+            endInput.value = '';
+            filterInvoices();
+            return;
+        default:
+            return;
+    }
+
+    startInput.value = formatDateInputValue(startDate);
+    endInput.value = formatDateInputValue(endDate);
+    filterInvoices();
 }
 
 function normalizeSaleRecord(sale) {
@@ -55,6 +126,7 @@ function normalizeSaleRecord(sale) {
         status: sale.status || 'completed',
         paymentMethod: sale.paymentMethod || 'CASH',
         customerName: sale.customerName || '',
+        notes: sale.notes || '',
         discount: Number(sale.discount || 0),
         itemsCount: Number(sale.itemsCount || (sale.items || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0))
     };
@@ -219,6 +291,7 @@ async function viewInvoice(id) {
     const sale = allSales.find(s => String(s.id) === String(id));
     if(!sale) return;
     currentViewingSaleId = id;
+    currentViewingSale = sale;
     const receiptMoment = formatReceiptDateParts(sale.timestampIso || sale.timestamp);
 
     // Fetch items
@@ -232,13 +305,13 @@ async function viewInvoice(id) {
 
     // Populate prices
     const subtotal = sale.totalPrice + (sale.discount || 0);
-    setTextIfPresent('detSubtotal', formatCurrency(subtotal));
-    setTextIfPresent('detDiscount', formatCurrency(sale.discount || 0));
-    setTextIfPresent('detTotal', formatCurrency(sale.totalPrice));
+    setTextIfPresent('detSubtotal', formatReceiptAmount(subtotal));
+    setTextIfPresent('detDiscount', formatReceiptAmount(sale.discount || 0));
+    setTextIfPresent('detTotal', formatReceiptAmount(sale.totalPrice));
     const settlement = getSettlementSummary(sale.changeAmount);
-    setTextIfPresent('detReceived', formatCurrency(Number(sale.amountReceived ?? sale.totalPrice ?? 0)));
+    setTextIfPresent('detReceived', formatReceiptAmount(Number(sale.amountReceived ?? sale.totalPrice ?? 0)));
     setTextIfPresent('detSettlementLabel', settlement.label);
-    setTextIfPresent('detChange', formatCurrency(settlement.amount));
+    setTextIfPresent('detChange', formatReceiptAmount(settlement.amount));
 
     const discountRow = document.getElementById('detDiscountRow');
     if (discountRow) {
@@ -248,20 +321,22 @@ async function viewInvoice(id) {
     // Populate items
     if(items && items.length > 0) {
         document.getElementById('detItemsTable').innerHTML = items.map(item => `
-            <tr class="align-top border-b border-dashed border-slate-100 last:border-0">
-                <td class="py-2 pr-2">${escHtml(item.itemName || item.name || 'Item')}</td>
-                <td class="py-2 text-center">${item.quantity}</td>
-                <td class="py-2 text-right">${formatCurrency(item.totalPrice || ((item.unitPrice || item.price || 0) * Number(item.quantity || 0)))}</td>
-            </tr>
+            <div class="receipt-item-row">
+                <span class="receipt-item-name">${escHtml(item.itemName || item.name || 'Item')} x${escHtml(String(item.quantity || 0))}</span>
+                <span class="receipt-item-amount">${formatReceiptAmount(item.totalPrice || ((item.unitPrice || item.price || 0) * Number(item.quantity || 0)))}</span>
+            </div>
         `).join('');
     } else {
-        document.getElementById('detItemsTable').innerHTML = `<tr><td colspan="3" class="text-center py-2 text-slate-400 italic">No items recorded (legacy data).</td></tr>`;
+        document.getElementById('detItemsTable').innerHTML = `<div class="receipt-center-line italic text-slate-500">No items recorded (legacy data).</div>`;
     }
 
     // Void Status UI
     const isVoided = sale.status === 'voided';
     document.getElementById('voidStamp').classList.toggle('hidden', !isVoided);
     document.getElementById('btnVoidInvoice').style.display = isVoided ? 'none' : 'flex';
+    const annotationInput = document.getElementById('saleAnnotationInput');
+    if (annotationInput) annotationInput.value = sale.notes || '';
+    setSaleAnnotationStatus(sale.notes ? 'Saved note loaded for this sale.' : 'No note saved for this sale yet.');
 
     // Open slide panel
     document.getElementById('invoicePanelWrapper').classList.remove('pointer-events-none', 'opacity-0');
@@ -270,6 +345,8 @@ async function viewInvoice(id) {
 
 function closeInvoice() {
     document.getElementById('invoicePanel').classList.remove('open');
+    currentViewingSale = null;
+    currentViewingSaleId = null;
     setTimeout(() => {
         document.getElementById('invoicePanelWrapper').classList.add('pointer-events-none', 'opacity-0');
     }, 300);
@@ -283,13 +360,13 @@ function getSettlementSummary(changeAmount) {
     const numericChange = Number(changeAmount ?? 0);
     if (numericChange < 0) {
         return {
-            label: 'Due:',
+            label: 'Due',
             amount: Math.abs(numericChange)
         };
     }
 
     return {
-        label: 'Change:',
+        label: 'Change',
         amount: numericChange
     };
 }
@@ -301,9 +378,8 @@ async function voidInvoiceAction() {
     if(!confirm(`Are you SURE you want to void receipt ${sale.receiptId}?\nThis cannot be undone and will mark the revenue as voided.`)) return;
 
     try {
-        // Mark as voided
-        sale.status = 'voided';
-        await saveSale(sale);
+        const updatedSale = await updateSaleRecord(sale.id, { status: 'voided' });
+        Object.assign(sale, normalizeSaleRecord(updatedSale));
         
         // Refresh local memory and UI
         closeInvoice();
@@ -315,6 +391,28 @@ async function voidInvoiceAction() {
     } catch(e) {
         console.error("Void error:", e);
         alert("Failed to void receipt.");
+    }
+}
+
+async function saveSaleAnnotation() {
+    if (!currentViewingSaleId) {
+        setSaleAnnotationStatus('Open a sale first before saving a note.', 'error');
+        return;
+    }
+
+    const input = document.getElementById('saleAnnotationInput');
+    const notes = (input?.value || '').trim();
+
+    try {
+        const updatedSale = await updateSaleRecord(currentViewingSaleId, { notes });
+        const normalized = normalizeSaleRecord(updatedSale);
+        const sale = allSales.find((entry) => String(entry.id) === String(currentViewingSaleId));
+        if (sale) Object.assign(sale, normalized);
+        currentViewingSale = sale || normalized;
+        setSaleAnnotationStatus(notes ? 'Annotation saved successfully.' : 'Annotation cleared.', 'success');
+    } catch (error) {
+        console.error('Failed to save sale annotation:', error);
+        setSaleAnnotationStatus(error?.message || 'Failed to save annotation.', 'error');
     }
 }
 

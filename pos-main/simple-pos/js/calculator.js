@@ -33,6 +33,9 @@ export function appendNumber(value, inCheckout = false, changeCallback = null) {
         }
         state.currentPrice += value;
     }
+    if (state.multiplyMode) {
+        emit('quantity:update');
+    }
     emit('display:update');
 }
 
@@ -46,6 +49,9 @@ export function backspace(inCheckout = false, changeCallback = null) {
         state.currentPrice = state.currentPrice.slice(0, -1);
     } else {
         state.currentPrice = '0';
+    }
+    if (state.multiplyMode) {
+        emit('quantity:update');
     }
     emit('display:update');
 }
@@ -79,12 +85,64 @@ export function setQuickAmount(amount) {
 
 export function multiply() {
     const currentValue = parseFloat(state.currentPrice) || 0;
+    if (currentValue <= 0) {
+        return false;
+    }
+
     if (!state.multiplyMode) {
         state.multiplyFirstValue = currentValue;
         state.multiplyMode = true;
         state.currentPrice = '0';
         emit('display:update');
+        return true;
     }
+
+    return false;
+}
+
+export function resolveMultiplyModeForAdd() {
+    if (!state.multiplyMode) {
+        return { applied: false, blocked: false };
+    }
+
+    const multiplierRaw = parseFloat(state.currentPrice);
+    if (!Number.isFinite(multiplierRaw) || multiplierRaw <= 0) {
+        return { applied: false, blocked: true };
+    }
+
+    const multiplier = Math.max(1, Math.round(multiplierRaw));
+    state.currentPrice = state.multiplyFirstValue.toString();
+    state.currentQuantity = multiplier;
+    state.multiplyMode = false;
+    state.multiplyFirstValue = 0;
+    emit('display:update');
+    emit('quantity:update');
+
+    return { applied: true, blocked: false, quantity: multiplier };
+}
+
+export function getPendingMultiplier() {
+    if (!state.multiplyMode) return state.currentQuantity;
+
+    const multiplierRaw = parseFloat(state.currentPrice);
+    if (!Number.isFinite(multiplierRaw) || multiplierRaw <= 0) {
+        return 0;
+    }
+
+    return Math.max(1, Math.round(multiplierRaw));
+}
+
+export function getDisplayAmount() {
+    if (!state.multiplyMode) {
+        return parseFloat(state.currentPrice) || 0;
+    }
+
+    const multiplier = getPendingMultiplier();
+    if (multiplier > 0) {
+        return state.multiplyFirstValue * multiplier;
+    }
+
+    return state.multiplyFirstValue || 0;
 }
 
 export function incrementQuantity() {

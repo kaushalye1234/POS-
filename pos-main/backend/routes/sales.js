@@ -4,6 +4,8 @@ const router = express.Router();
 const Sale = require('../models/Sale');
 const Item = require('../models/Item');
 const InventoryTransaction = require('../models/InventoryTransaction');
+const config = require('../config');
+const { getBusinessTimestampParts } = require('../utils/businessTime');
 
 // ============================================
 // SEC-005: Input validation helper
@@ -115,8 +117,9 @@ router.post('/', async (req, res, next) => {
 
         // Build a sanitized sale data object (don't trust req.body wholesale)
         const now = new Date();
-        const saleDate = req.body.saleDate || now.toISOString().slice(0, 10);
-        const saleTime = req.body.saleTime || now.toTimeString().split(' ')[0];
+        const businessNow = getBusinessTimestampParts(now, config.businessTimeZone);
+        const saleDate = req.body.saleDate || businessNow.saleDate;
+        const saleTime = req.body.saleTime || businessNow.saleTime;
         const saleData = {
             employeeId: String(req.body.employeeId).trim(),
             items: req.body.items.map(item => {
@@ -144,7 +147,12 @@ router.post('/', async (req, res, next) => {
             saleTime,
             itemsCount: req.body.items.length,
             customerId: req.body.customerId || null,
-            customerName: req.body.customerName || null
+            customerName: req.body.customerName || null,
+            paymentMethod: String(req.body.paymentMethod || 'CASH').trim().toUpperCase(),
+            status: ['completed', 'voided', 'refunded'].includes(String(req.body.status || '').toLowerCase())
+                ? String(req.body.status).toLowerCase()
+                : 'completed',
+            notes: String(req.body.notes || '').trim().slice(0, 1000)
         };
 
         // ============================================
@@ -260,6 +268,49 @@ router.get('/analytics/summary', async (req, res, next) => {
             totalSales: 0,
             totalItemsSold: 0
         });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// ============================================
+// PUT /api/sales/:id — update sale metadata
+// ============================================
+router.put('/:id', async (req, res, next) => {
+    try {
+        const updates = {};
+
+        if (Object.prototype.hasOwnProperty.call(req.body, 'notes')) {
+            updates.notes = String(req.body.notes || '').trim().slice(0, 1000);
+        }
+
+        if (Object.prototype.hasOwnProperty.call(req.body, 'status')) {
+            const normalizedStatus = String(req.body.status || '').trim().toLowerCase();
+            if (!['completed', 'voided', 'refunded'].includes(normalizedStatus)) {
+                return res.status(400).json({ error: 'Invalid sale status.' });
+            }
+            updates.status = normalizedStatus;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(req.body, 'paymentMethod')) {
+            updates.paymentMethod = String(req.body.paymentMethod || 'CASH').trim().toUpperCase().slice(0, 32);
+        }
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'No valid sale updates were provided.' });
+        }
+
+        const updatedSale = await Sale.findByIdAndUpdate(
+            req.params.id,
+            { $set: updates },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedSale) {
+            return res.status(404).json({ error: 'Sale not found.' });
+        }
+
+        res.json(updatedSale);
     } catch (err) {
         next(err);
     }

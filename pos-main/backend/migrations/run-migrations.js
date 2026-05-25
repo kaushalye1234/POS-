@@ -4,8 +4,11 @@
 
 const mongoose = require('mongoose');
 const Item = require('../models/Item');
+const Sale = require('../models/Sale');
 const InventoryTransaction = require('../models/InventoryTransaction');
+const config = require('../config');
 const { generateSKU, generateBarcode } = require('../utils/skuGenerator');
+const { formatBusinessDate, formatBusinessTime } = require('../utils/businessTime');
 const { connectMongo, redactMongoUri } = require('../mongoConnection');
 
 async function ensureSkuForItems() {
@@ -44,6 +47,38 @@ async function createIndexes() {
     }
 }
 
+async function repairSaleBusinessDates() {
+    const cursor = Sale.find({ createdAt: { $exists: true } }).cursor();
+    let updated = 0;
+
+    for (let doc = await cursor.next(); doc != null; doc = await cursor.next()) {
+        try {
+            const correctedDate = formatBusinessDate(doc.createdAt, config.businessTimeZone);
+            const correctedTime = formatBusinessTime(doc.createdAt, config.businessTimeZone);
+            let changed = false;
+
+            if (doc.saleDate !== correctedDate) {
+                doc.saleDate = correctedDate;
+                changed = true;
+            }
+
+            if (!doc.saleTime || !/^\d{2}:\d{2}:\d{2}$/.test(String(doc.saleTime))) {
+                doc.saleTime = correctedTime;
+                changed = true;
+            }
+
+            if (changed) {
+                await doc.save();
+                updated++;
+            }
+        } catch (e) {
+            console.error('Failed to repair sale date for sale id', doc._id, e.message);
+        }
+    }
+
+    return updated;
+}
+
 async function run() {
     const connection = await connectMongo(mongoose, { maxPoolSize: 10 });
     console.log(`Connecting to ${redactMongoUri(connection.uri)} (${connection.source})`);
@@ -51,6 +86,8 @@ async function run() {
         const updated = await ensureSkuForItems();
         console.log('Items updated with SKUs:', updated);
         await createIndexes();
+        const repairedSales = await repairSaleBusinessDates();
+        console.log('Sales repaired for business date/time:', repairedSales);
     } catch (e) {
         console.error('Migration failed', e);
     } finally {

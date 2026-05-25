@@ -86,6 +86,49 @@ describe('Calculator Module', () => {
         expect(state.currentPrice).toBe('0'); // Ready for next input
     });
 
+    test('resolveMultiplyModeForAdd converts the second entry into quantity', () => {
+        state.currentPrice = '2500';
+        calc.multiply();
+        state.currentPrice = '3';
+
+        const result = calc.resolveMultiplyModeForAdd();
+
+        expect(result).toEqual({ applied: true, blocked: false, quantity: 3 });
+        expect(state.currentPrice).toBe('2500');
+        expect(state.currentQuantity).toBe(3);
+        expect(state.multiplyMode).toBe(false);
+        expect(state.multiplyFirstValue).toBe(0);
+    });
+
+    test('getDisplayAmount shows running multiplied total while entering quantity', () => {
+        state.currentPrice = '4';
+        calc.multiply();
+        state.currentPrice = '2';
+
+        expect(calc.getPendingMultiplier()).toBe(2);
+        expect(calc.getDisplayAmount()).toBe(8);
+    });
+
+    test('getDisplayAmount keeps original value visible before multiplier entry', () => {
+        state.currentPrice = '4';
+        calc.multiply();
+
+        expect(calc.getPendingMultiplier()).toBe(0);
+        expect(calc.getDisplayAmount()).toBe(4);
+    });
+
+    test('resolveMultiplyModeForAdd blocks add when multiplier is missing', () => {
+        state.currentPrice = '2500';
+        calc.multiply();
+        state.currentPrice = '0';
+
+        const result = calc.resolveMultiplyModeForAdd();
+
+        expect(result).toEqual({ applied: false, blocked: true });
+        expect(state.multiplyMode).toBe(true);
+        expect(state.multiplyFirstValue).toBe(2500);
+    });
+
     test('setQuickAmount overrides current price', () => {
         calc.setQuickAmount('5000');
         expect(state.currentPrice).toBe('5000');

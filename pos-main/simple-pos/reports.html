@@ -13,46 +13,86 @@
     <title>Fashion Shaa - Invoice History & Reports</title>
     <link rel="stylesheet" href="output.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@800&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <style>
         @media print {
             body * { visibility: hidden; }
             #printableInvoice, #printableInvoice * { visibility: visible; }
-            #printableInvoice { position: absolute; left: 0; top: 0; width: 100%; color: black; background: white; margin: 0; padding: 20px; }
+            #printableInvoice {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 340px;
+                color: black;
+                background: white;
+                margin: 0 auto;
+                padding: 20px;
+                box-shadow: none;
+            }
             .no-print { display: none !important; }
         }
 
+        .receipt-paper {
+            background: white;
+            padding: 20px;
+            max-width: 300px;
+            margin: 0 auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-family: 'Courier New', monospace;
+            color: black;
+        }
         .receipt-logo {
             display: flex;
             justify-content: center;
-            align-items: stretch;
-            margin-bottom: 1rem;
+            align-items: center;
+            gap: 0;
+            font-weight: 800;
+            text-transform: uppercase;
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 20px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .receipt-logo-block {
             color: white;
-            font-weight: 900;
-            font-size: 1.55rem;
-            line-height: 1;
-            padding: 1rem 0.95rem;
-            letter-spacing: 0.02em;
+            font-weight: 800;
+            padding: 6px 10px;
+            font-size: 20px;
         }
-        .receipt-logo-red { background: #e1261c; }
+        .receipt-logo-red { background: #dc2626; }
         .receipt-logo-black { background: #000000; }
-        .receipt-dash {
-            border-top: 2px dashed rgba(15, 23, 42, 0.95);
-            margin: 0.85rem 0;
+        .receipt-text {
+            text-align: left;
+            display: inline-block;
+            width: 100%;
+            font-size: 14px;
+            line-height: 1.4;
         }
-        .receipt-rule {
-            border-top: 1px solid rgba(15, 23, 42, 0.95);
-            margin: 0.8rem 0;
+        .receipt-center-line {
+            text-align: center;
+        }
+        .receipt-separator {
+            text-align: center;
+            font-weight: 700;
+            margin: 4px 0;
+            letter-spacing: 0.01em;
+        }
+        .receipt-title {
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+            font-size: 16px;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            margin: 10px 0;
         }
         .receipt-meta-row,
-        .receipt-amount-row {
+        .receipt-amount-row,
+        .receipt-item-row,
+        .receipt-total-row {
             display: flex;
             justify-content: space-between;
-            gap: 0.75rem;
-            font-size: 0.78rem;
-            margin-bottom: 0.35rem;
+            gap: 10px;
         }
         .receipt-meta-row.hidden,
         .receipt-amount-row.hidden {
@@ -62,23 +102,37 @@
         .receipt-meta-row span:last-child {
             text-align: right;
         }
-        .receipt-items-table th,
-        .receipt-items-table td {
-            padding: 0.35rem 0;
-            vertical-align: top;
+        .receipt-meta-row {
+            margin-bottom: 2px;
         }
-        .receipt-items-table th {
-            border-bottom: 1px solid rgba(15, 23, 42, 0.95);
+        .receipt-items-header {
+            margin: 8px 0 4px;
+            font-weight: 700;
         }
-        .receipt-items-table th:nth-child(2),
-        .receipt-items-table td:nth-child(2) {
-            text-align: center;
-            width: 3rem;
+        .receipt-item-row {
+            align-items: flex-start;
+            margin-bottom: 2px;
         }
-        .receipt-items-table th:nth-child(3),
-        .receipt-items-table td:nth-child(3) {
+        .receipt-item-name {
+            flex: 1;
+            padding-right: 10px;
+            word-break: break-word;
+        }
+        .receipt-item-amount {
+            min-width: 90px;
             text-align: right;
-            width: 6.25rem;
+        }
+        .receipt-total-row {
+            margin-top: 4px;
+            font-family: 'Inter', sans-serif;
+            font-size: 15px;
+            font-weight: 800;
+        }
+        .receipt-footer {
+            text-align: center;
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            margin-top: 8px;
         }
 
         /* Invoice Slide Panel */
@@ -137,15 +191,16 @@
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 mt-1">Total Refunds</p>
                 <h3 id="statTotalRefunds" class="text-3xl font-black text-amber-400">0</h3>
             </div>
-            <div class="glass-card rounded-xl p-5 border-l-4 border-l-slate-500 relative overflow-hidden">
+            <button type="button" id="dateRangeSummaryCard" onclick="focusDateRangeFilters()" class="glass-card rounded-xl p-5 border-l-4 border-l-slate-500 relative overflow-hidden text-left transition-all hover:border-l-primary hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-primary/60">
                 <span class="material-symbols-outlined absolute right-4 bottom-4 text-5xl text-slate-700/50">calendar_month</span>
                 <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 mt-1">Date Range</p>
                 <h3 id="statDateRange" class="text-lg font-bold text-slate-300 mt-2">All Time</h3>
-            </div>
+                <p class="mt-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Click to change from / to dates</p>
+            </button>
         </div>
 
         <!-- Filter & Search Bar -->
-        <div class="glass-card rounded-xl p-6 mb-6">
+        <div id="dateRangeFiltersCard" class="glass-card rounded-xl p-6 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4 items-end">
                 <div class="lg:col-span-2">
                     <label class="text-xs font-bold text-slate-400 uppercase block mb-1.5 ml-1">Search Identifier</label>
@@ -173,6 +228,26 @@
                         <span class="material-symbols-outlined text-[18px]">clear_all</span> Reset
                     </button>
                 </div>
+            </div>
+            <div class="mt-5 flex flex-wrap gap-3">
+                <button type="button" onclick="setDateRangePreset('today')" class="btn-action bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                    <span class="material-symbols-outlined text-[18px]">today</span> Today
+                </button>
+                <button type="button" onclick="setDateRangePreset('7days')" class="btn-action bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                    <span class="material-symbols-outlined text-[18px]">date_range</span> Last 7 Days
+                </button>
+                <button type="button" onclick="setDateRangePreset('30days')" class="btn-action bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                    <span class="material-symbols-outlined text-[18px]">event_repeat</span> Last 30 Days
+                </button>
+                <button type="button" onclick="setDateRangePreset('month')" class="btn-action bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                    <span class="material-symbols-outlined text-[18px]">calendar_view_month</span> This Month
+                </button>
+                <button type="button" onclick="setDateRangePreset('all')" class="btn-action bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700">
+                    <span class="material-symbols-outlined text-[18px]">all_inclusive</span> All Time
+                </button>
+                <button type="button" onclick="applyDateRangeFilters()" class="btn-action bg-primary hover:bg-red-700 text-white shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-[18px]">filter_alt</span> Apply Dates
+                </button>
             </div>
         </div>
 
@@ -230,7 +305,7 @@
             <div class="p-6 overflow-y-auto flex-1 custom-scrollbar">
                 
                 <!-- Receipt UI (Printable Area) -->
-                <div id="printableInvoice" class="bg-white text-slate-900 p-8 rounded-lg shadow-inner max-w-sm mx-auto font-mono text-sm relative">
+                <div id="printableInvoice" class="receipt-paper rounded-lg shadow-inner relative">
                     <!-- Void Stamp -->
                     <div id="voidStamp" class="hidden absolute inset-0 flex items-center justify-center select-none pointer-events-none opacity-20">
                         <div class="border-4 border-red-600 text-red-600 text-6xl font-black uppercase tracking-widest p-4 transform -rotate-45">VOIDED</div>
@@ -241,65 +316,68 @@
                         <div class="receipt-logo-block receipt-logo-black">SHAA</div>
                     </div>
 
-                    <div class="text-center mb-3 text-[13px] font-semibold leading-snug">
-                        <p>188, Kachcheri Idiripita,</p>
-                        <p>Kada 12, Anuradhapura.</p>
-                        <p>Tel: 025 2053465</p>
+                    <div class="receipt-text">
+                        <div class="receipt-separator">========================================</div>
+                        <div class="receipt-center-line">Textiles &amp; Readymade Garments</div>
+                        <div class="receipt-center-line">188, Kachcheri Idiripita,</div>
+                        <div class="receipt-center-line">Kada 12, Anuradhapura.</div>
+                        <div class="receipt-center-line">Tel: 025 2053465</div>
+                        <div class="receipt-separator">========================================</div>
+                        <h2 class="receipt-title">SALES RECEIPT</h2>
+
+                        <div class="receipt-meta-row">
+                            <span>Date: <strong id="detDate">---</strong></span>
+                            <span>Time: <strong id="detTime">---</strong></span>
+                        </div>
+
+                        <div class="receipt-meta-row">
+                            <span>Employee: <strong id="detEmployee">---</strong></span>
+                            <span>Receipt: <strong id="detReceiptId">---</strong></span>
+                        </div>
+
+                        <div class="receipt-separator">----------------------------------------</div>
+                        <div class="receipt-item-row receipt-items-header">
+                            <span>ITEM</span>
+                            <span>TOTAL</span>
+                        </div>
+                        <div id="detItemsTable">
+                            <!-- Items go here -->
+                        </div>
+
+                        <div class="receipt-separator">----------------------------------------</div>
+
+                        <div class="space-y-1 mb-4">
+                            <div class="receipt-amount-row"><span>Subtotal:</span> <span id="detSubtotal">0.00</span></div>
+                            <div id="detDiscountRow" class="receipt-amount-row hidden"><span>Discount:</span> <span id="detDiscount">0.00</span></div>
+                        </div>
+
+                        <div class="receipt-total-row"><span>TOTAL:</span> <span id="detTotal">0.00</span></div>
+
+                        <div class="space-y-1 mt-4">
+                            <div class="receipt-amount-row"><span>Amount Received:</span> <span id="detReceived">0.00</span></div>
+                            <div class="receipt-amount-row"><span id="detSettlementLabel">Change:</span> <span id="detChange">0.00</span></div>
+                        </div>
+
+                        <div class="receipt-separator">========================================</div>
+
+                        <div class="receipt-footer">THANK YOU!</div>
+                        <div class="receipt-footer">COME AGAIN!</div>
+                        <div class="receipt-footer">COME WITHIN 7 DAYS</div>
                     </div>
+                </div>
 
-                    <div class="receipt-dash"></div>
-                    <h2 class="text-center text-[1.15rem] font-black tracking-tight uppercase mb-4">Sales Receipt</h2>
-
-                    <div class="receipt-meta-row">
-                        <span>Date: <strong id="detDate">---</strong></span>
-                        <span>Time: <strong id="detTime">---</strong></span>
+                <div class="mt-6 no-print glass-card rounded-xl border border-slate-700/70 p-4">
+                    <div class="flex items-start justify-between gap-4 mb-3">
+                        <div>
+                            <h3 class="text-sm font-black uppercase tracking-widest text-slate-200">Sale Annotation</h3>
+                            <p class="text-xs text-slate-400 mt-1">Save a note for this invoice so it reopens with context later.</p>
+                        </div>
+                        <button onclick="saveSaleAnnotation()" class="btn-action bg-primary hover:bg-red-700 text-white shadow-lg shadow-primary/20 justify-center">
+                            <span class="material-symbols-outlined text-[18px]">edit_note</span> Save Note
+                        </button>
                     </div>
-
-                    <div class="receipt-dash"></div>
-
-                    <div class="receipt-meta-row">
-                        <span>Employee: <strong id="detEmployee">---</strong></span>
-                        <span>Receipt: <strong id="detReceiptId">---</strong></span>
-                    </div>
-
-                    <div class="mt-5">
-                        <table class="w-full text-xs receipt-items-table">
-                            <thead>
-                                <tr class="text-left uppercase font-black">
-                                    <th class="py-1">Item</th>
-                                    <th class="py-1">Qty</th>
-                                    <th class="py-1">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody id="detItemsTable">
-                                <!-- Items go here -->
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div class="receipt-dash"></div>
-
-                    <div class="space-y-1 text-xs mb-4">
-                        <div class="receipt-amount-row"><span>Subtotal:</span> <span id="detSubtotal">Rs.0.00</span></div>
-                        <div id="detDiscountRow" class="receipt-amount-row hidden"><span>Discount:</span> <span id="detDiscount">Rs.0.00</span></div>
-                    </div>
-
-                    <div class="receipt-rule"></div>
-                    <div class="text-center text-[1.15rem] font-black tracking-tight mb-3">TOTAL: <span id="detTotal">Rs.0.00</span></div>
-                    <div class="receipt-rule"></div>
-
-                    <div class="space-y-1 text-xs">
-                        <div class="receipt-amount-row"><span>Amount Received:</span> <span id="detReceived">Rs.0.00</span></div>
-                        <div class="receipt-amount-row"><span id="detSettlementLabel">Change:</span> <span id="detChange">Rs.0.00</span></div>
-                    </div>
-
-                    <div class="receipt-dash"></div>
-
-                    <div class="text-center text-[11px] font-black leading-snug mt-4">
-                        <p>THANK YOU!</p>
-                        <p>COME AGAIN!</p>
-                        <p>COME WITHIN 7 DAYS</p>
-                    </div>
+                    <textarea id="saleAnnotationInput" class="input-field min-h-[120px] resize-y" placeholder="Add a note about this sale, customer request, issue, or follow-up..."></textarea>
+                    <p id="saleAnnotationStatus" class="mt-3 text-xs font-semibold text-slate-400"></p>
                 </div>
             </div>
 
@@ -315,7 +393,7 @@
         </div>
     </div>
 
-    <script src="database.js?v=20260522j"></script>
-    <script src="reports.js?v=20260522j"></script>
+    <script src="database.js?v=20260524i"></script>
+    <script src="reports.js?v=20260525a"></script>
 </body>
 </html>

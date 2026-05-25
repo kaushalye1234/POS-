@@ -8,6 +8,9 @@
     <meta property="og:type" content="website">
 
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enterprise Hub - Fashion Shaa POS</title>
@@ -64,6 +67,9 @@
             <button type="button" data-page="shifts.html" class="sidebar-link text-left w-full bg-transparent border-0">
                 <span class="material-symbols-outlined text-emerald-400">schedule</span> Shift Management
             </button>
+            <button type="button" data-page="attendance.html" class="sidebar-link text-left w-full bg-transparent border-0">
+                <span class="material-symbols-outlined text-sky-400">fact_check</span> Attendance
+            </button>
             <button type="button" data-page="advances.html" class="sidebar-link text-left w-full bg-transparent border-0">
                 <span class="material-symbols-outlined text-yellow-500">payments</span> Advances
             </button>
@@ -97,16 +103,38 @@
 
     <!-- Main Content Frame -->
     <main id="content-wrapper">
-        <iframe id="content-frame" src="analytics.html?v=20260522j" onload="onFrameLoad(this)"></iframe>
+        <iframe id="content-frame" src="about:blank"></iframe>
     </main>
 
+    <script src="database.js?v=20260525d"></script>
     <script>
-        const DASHBOARD_PAGE_VERSION = '20260522j';
+        const DASHBOARD_PAGE_VERSION = '20260525d';
+        const DASHBOARD_DEFAULT_PAGE = 'analytics.html';
+
+        function hasValidSession() {
+            try {
+                const token = window.POS_API?.getAuthToken?.();
+                if (!token) return false;
+
+                const payloadPart = token.split('.')[1];
+                if (!payloadPart) return false;
+
+                const normalized = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+                const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+                const payload = JSON.parse(atob(padded));
+                return Number(payload?.exp || 0) * 1000 > Date.now();
+            } catch {
+                return false;
+            }
+        }
+
+        function redirectToPosLogin() {
+            window.location.replace('index.html');
+        }
 
         function getStoredAuthUser() {
             try {
-                const raw = localStorage.getItem('pos_auth_user');
-                return raw ? JSON.parse(raw) : null;
+                return window.POS_API?.getAuthUser?.() || null;
             } catch {
                 return null;
             }
@@ -167,8 +195,24 @@
             }
         }
 
-        applyRoleVisibility();
-        setupSidebarNavigation();
+        function bootDashboard() {
+            if (!hasValidSession()) {
+                redirectToPosLogin();
+                return;
+            }
+
+            applyRoleVisibility();
+            setupSidebarNavigation();
+
+            const frame = document.getElementById('content-frame');
+            frame.addEventListener('load', () => onFrameLoad(frame));
+
+            const initiallyActiveLink = document.querySelector('.sidebar-link.active[data-page]');
+            const initialPage = initiallyActiveLink?.dataset.page || DASHBOARD_DEFAULT_PAGE;
+            frame.src = getVersionedPageUrl(initialPage);
+        }
+
+        bootDashboard();
     </script>
 </body>
 </html>

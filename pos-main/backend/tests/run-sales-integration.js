@@ -2,6 +2,8 @@ const { MongoMemoryServer } = require('mongodb-memory-server');
 const { spawn } = require('child_process');
 const fetch = global.fetch || require('node-fetch');
 const mongoose = require('mongoose');
+const config = require('../config');
+const { getBusinessTimestampParts } = require('../utils/businessTime');
 const { registerOrLogin, jsonHeaders } = require('./auth-helper');
 
 async function waitForServer(child, timeout = 15000) {
@@ -56,6 +58,7 @@ async function run() {
 
         // 2) Post a sale of quantity 2
         const now = new Date();
+        const businessNow = getBusinessTimestampParts(now, config.businessTimeZone);
         const sale = {
             employeeId: 'E1',
             totalAmount: 100,
@@ -64,8 +67,8 @@ async function run() {
             amountReceived: 100,
             changeAmount: 0,
             itemsCount: 2,
-            saleDate: now.toISOString().split('T')[0],
-            saleTime: now.toTimeString().split(' ')[0],
+            saleDate: businessNow.saleDate,
+            saleTime: businessNow.saleTime,
             items: [{ sku: 'TESTSKU1', itemName: 'Test Item', quantity: 2, unitPrice: 50, totalPrice: 100 }]
         };
 

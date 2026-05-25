@@ -5,6 +5,7 @@ const DEFAULT_PORT = 5000;
 const DEFAULT_NODE_ENV = 'development';
 const DEFAULT_JWT_SECRET = 'fashion_shaa_pos_jwt_secret_change_in_production';
 const DEFAULT_JWT_EXPIRY = '12h';
+const DEFAULT_BUSINESS_TIME_ZONE = 'Asia/Colombo';
 const ALLOWED_MONGO_CONNECTION_MODES = new Set(['single', 'local', 'remote', 'auto']);
 const DEFAULT_MONGO_SYNC_INTERVAL_MS = 60000;
 
@@ -141,6 +142,7 @@ module.exports = {
     mongoSyncEnabled: parseBoolean(readEnv('MONGO_SYNC_ENABLED'), false),
     mongoSyncOnStartup: parseBoolean(readEnv('MONGO_SYNC_ON_STARTUP'), true),
     mongoSyncIntervalMs: parsePositiveInteger(readEnv('MONGO_SYNC_INTERVAL_MS'), DEFAULT_MONGO_SYNC_INTERVAL_MS),
+    businessTimeZone: readEnv('BUSINESS_TIME_ZONE') || DEFAULT_BUSINESS_TIME_ZONE,
     jwtSecret: readEnv('JWT_SECRET') || DEFAULT_JWT_SECRET,
     jwtExpiry: readEnv('JWT_EXPIRY', 'JWT_EXPIRES_IN') || DEFAULT_JWT_EXPIRY,
     corsOrigins: parseCorsOrigins(readEnv('CORS_ORIGIN'))

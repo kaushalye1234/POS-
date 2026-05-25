@@ -15,5 +15,3 @@ oShortcut.IconLocation = "shell32.dll,21"
 oShortcut.Save
 
 MsgBox "Desktop shortcut 'Fashion Shaa POS' created successfully!", vbInformation, "Shortcut Created"
-
-/* placeholder aria-label */

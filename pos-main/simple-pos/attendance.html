@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="description" content="Fashion Shaa attendance workspace">
+    <meta property="og:title" content="Fashion Shaa Attendance">
+    <meta property="og:description" content="Attendance management for Fashion Shaa POS">
+    <meta property="og:type" content="website">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://ui-avatars.com; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fashion Shaa - Attendance</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        body { background: #0b1326; color: #e2e8f0; font-family: 'Inter', sans-serif; }
+        .glass-nav { background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(16px); border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-card { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .ops-stat-card { background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; padding: 1rem 1.1rem; }
+        .ops-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.18em; color: #64748b; }
+        .ops-stat-value { font-size: 1.55rem; line-height: 1.1; font-weight: 800; color: white; margin-top: 0.45rem; }
+        .access-card { background: rgba(15,23,42,0.45); border: 1px solid rgba(255,255,255,0.08); border-radius: 1rem; padding: 1.25rem; }
+        .field-label { font-size: 0.75rem; font-weight: 700; color: #94a3b8; margin-left: 0.25rem; display: block; margin-bottom: 0.5rem; }
+        .access-muted { color: #94a3b8; font-size: 0.875rem; }
+        .attendance-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(120px, 0.55fr) minmax(0, 1fr); gap: 0.75rem; align-items: center; padding: 0.95rem 1rem; border: 1px solid rgba(255,255,255,0.07); border-radius: 0.9rem; background: rgba(15,23,42,0.38); }
+        .attendance-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 92px; padding: 0.35rem 0.65rem; border-radius: 999px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; }
+        .status-present { background: rgba(16,185,129,0.16); color: #6ee7b7; }
+        .status-half-day { background: rgba(245,158,11,0.16); color: #fcd34d; }
+        .status-absent { background: rgba(239,68,68,0.16); color: #fda4af; }
+        .status-leave { background: rgba(59,130,246,0.16); color: #93c5fd; }
+        .status-unmarked { background: rgba(100,116,139,0.18); color: #cbd5e1; }
+        .attendance-actions { display: flex; flex-wrap: wrap; gap: 0.45rem; justify-content: flex-end; }
+        .attendance-btn { padding: 0.48rem 0.72rem; border-radius: 0.7rem; font-size: 0.72rem; font-weight: 700; border: 1px solid transparent; transition: all 0.18s ease; }
+        .attendance-btn:hover { transform: translateY(-1px); }
+        .attendance-btn.present { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.25); color: #6ee7b7; }
+        .attendance-btn.half-day { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.25); color: #fcd34d; }
+        .attendance-btn.absent { background: rgba(239,68,68,0.12); border-color: rgba(239,68,68,0.25); color: #fda4af; }
+        .attendance-btn.leave { background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.25); color: #93c5fd; }
+        .empty-mini { border: 1px dashed rgba(255,255,255,0.1); border-radius: 0.9rem; padding: 1rem; text-align: center; color: #64748b; font-style: italic; }
+        .toast { position: fixed; top: 24px; right: 24px; z-index: 1000; min-width: 240px; max-width: 360px; padding: 14px 18px; border-radius: 0.9rem; font-weight: 700; font-size: 0.92rem; box-shadow: 0 20px 45px rgba(2, 6, 23, 0.45); opacity: 0; transform: translateY(-8px); transition: all 0.2s ease; pointer-events: none; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast-success { background: rgba(5, 150, 105, 0.95); color: #ecfdf5; }
+        .toast-error { background: rgba(190, 24, 93, 0.95); color: #fff1f2; }
+        .toast-info { background: rgba(30, 41, 59, 0.96); color: #e2e8f0; }
+        @media (max-width: 1024px) {
+            .attendance-row { grid-template-columns: 1fr; }
+            .attendance-actions { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <header class="sticky top-0 z-50 glass-nav px-6 lg:px-20 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary p-2 rounded-lg">
+                    <span class="material-symbols-outlined text-white">fact_check</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-black tracking-tight text-white">Attendance Workspace</h1>
+                    <p class="text-sm text-slate-400 mt-1">Mark present, half day, absent, or leave for each worker on the selected day.</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <a href="employees.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg glass-card hover:bg-white/10 transition-all text-sm font-semibold text-white">
+                    <span class="material-symbols-outlined text-base">badge</span> Employees
+                </a>
+                <a href="index.html" class="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-primary hover:bg-red-700 text-white transition-all text-sm font-semibold shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-base">point_of_sale</span> Back to POS
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 lg:px-20 py-8 space-y-6">
+        <section class="glass-card rounded-2xl p-6">
+            <div class="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-white">Daily Attendance Control</h2>
+                    <p class="access-muted mt-2">Choose a date, refresh the roster, and mark each worker without leaving the dashboard flow.</p>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <div>
+                        <label class="field-label" for="attendanceDateInput">Attendance Date</label>
+                        <input id="attendanceDateInput" type="date" class="bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary focus:border-transparent">
+                    </div>
+                    <button id="attendanceTodayBtn" class="h-[46px] sm:self-end rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 text-sm font-bold text-white transition-colors">Today</button>
+                    <button id="attendanceReloadBtn" class="h-[46px] sm:self-end rounded-lg bg-primary hover:bg-red-700 px-4 text-sm font-bold text-white transition-colors">Refresh</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="attendanceSummary" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div class="ops-stat-card text-slate-400 italic">Loading attendance summary...</div>
+        </section>
+
+        <section class="access-card">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div>
+                    <h3 class="text-base font-bold text-white">Available Workers & Attendance Marker</h3>
+                    <p id="attendanceRosterSubtitle" class="access-muted mt-1">Loading roster for the selected date.</p>
+                </div>
+                <div class="text-xs font-semibold text-slate-500 uppercase tracking-[0.18em]">Today roster</div>
+            </div>
+            <div id="attendanceRoster" class="space-y-3">
+                <div class="empty-mini">Loading attendance roster...</div>
+            </div>
+        </section>
+    </main>
+
+    <div id="attendanceToast" class="toast toast-info"></div>
+
+    <script src="database.js?v=20260525c"></script>
+    <script src="attendance.js?v=20260525a"></script>
+</body>
+</html>

@@ -1,4 +1,26 @@
 // Live Clock
+function getStorage() {
+    return window.POS_API?.storage || {
+        getItem(key) {
+            try {
+                return window.localStorage?.getItem(key) ?? null;
+            } catch {
+                return null;
+            }
+        },
+        setItem(key, value) {
+            try {
+                window.localStorage?.setItem(key, value);
+                return true;
+            } catch {
+                return false;
+            }
+        }
+    };
+}
+
+const storage = getStorage();
+
 function updateClock() {
     const now = new Date();
 
@@ -73,12 +95,12 @@ document.getElementById('updateTimeBtn').addEventListener('click', async () => {
 const itemPopupToggle = document.getElementById('itemPopupToggle');
 
 // Load saved preference
-const useItemPopup = localStorage.getItem('useItemNumberPopup') === 'true';
+const useItemPopup = storage.getItem('useItemNumberPopup') === 'true';
 itemPopupToggle.checked = useItemPopup;
 
 // Save when toggled
 itemPopupToggle.addEventListener('change', () => {
-    localStorage.setItem('useItemNumberPopup', itemPopupToggle.checked);
+    storage.setItem('useItemNumberPopup', itemPopupToggle.checked);
 
     // Visual feedback
     const statusText = itemPopupToggle.checked ? 'enabled' : 'disabled';
@@ -108,12 +130,12 @@ const keyboardShortcutsToggle = document.getElementById('keyboardShortcutsToggle
 
 if (keyboardShortcutsToggle) {
     // Load saved preference (Default to true)
-    const enableShortcuts = localStorage.getItem('enableKeyboardShortcuts') !== 'false';
+    const enableShortcuts = storage.getItem('enableKeyboardShortcuts') !== 'false';
     keyboardShortcutsToggle.checked = enableShortcuts;
 
     // Save when toggled
     keyboardShortcutsToggle.addEventListener('change', () => {
-        localStorage.setItem('enableKeyboardShortcuts', keyboardShortcutsToggle.checked);
+        storage.setItem('enableKeyboardShortcuts', keyboardShortcutsToggle.checked);
 
         // Visual feedback
         const statusText = keyboardShortcutsToggle.checked ? 'enabled' : 'disabled';
@@ -205,9 +227,9 @@ const featureFlags = [
 
 // Dev Mode
 if (devModeToggle) {
-    devModeToggle.checked = localStorage.getItem('devMode') === 'true';
+    devModeToggle.checked = storage.getItem('devMode') === 'true';
     devModeToggle.addEventListener('change', () => {
-        localStorage.setItem('devMode', devModeToggle.checked);
+        storage.setItem('devMode', devModeToggle.checked);
         showToast(`Developer Mode ${devModeToggle.checked ? 'ENABLED' : 'DISABLED'}`, '#eab308');
     });
 }
@@ -216,10 +238,10 @@ if (devModeToggle) {
 featureFlags.forEach(flag => {
     const el = document.getElementById(flag.id);
     if (el) {
-        const saved = localStorage.getItem(flag.key);
+        const saved = storage.getItem(flag.key);
         el.checked = saved === null ? true : saved === 'true'; // Default to enabled
         el.addEventListener('change', () => {
-            localStorage.setItem(flag.key, el.checked);
+            storage.setItem(flag.key, el.checked);
             showToast(`${flag.label}: ${el.checked ? 'ON' : 'OFF'}`, el.checked ? '#10b981' : '#64748b');
         });
     }

@@ -1,6 +1,18 @@
 import { state, emit } from './state.js';
 import { clearEntry } from './calculator.js';
 
+function getStorage() {
+    return window.POS_API?.storage || {
+        getItem(key) {
+            try {
+                return window.localStorage?.getItem(key) ?? null;
+            } catch {
+                return null;
+            }
+        }
+    };
+}
+
 export function addItem(discountEligible, itemName = '', category = '', skipPopup = false) {
     const price = parseFloat(state.currentPrice);
     if (price <= 0) {
@@ -21,7 +33,7 @@ export function addItem(discountEligible, itemName = '', category = '', skipPopu
         return;
     }
 
-    const useItemPopup = localStorage.getItem('useItemNumberPopup') === 'true';
+    const useItemPopup = getStorage().getItem('useItemNumberPopup') === 'true';
     if (useItemPopup && !skipPopup) {
         emit('modal:open_item_selection');
     } else {

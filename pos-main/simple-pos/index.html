@@ -2,6 +2,9 @@
 <html lang="en" class="dark">
 <head>
     <meta charset="utf-8"/>
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate"/>
+    <meta http-equiv="Pragma" content="no-cache"/>
+    <meta http-equiv="Expires" content="0"/>
 
     <meta name="description" content="Fashion Shaa Corporate POS System">
     <meta property="og:title" content="Fashion Shaa POS">
@@ -245,6 +248,24 @@
         .key.action-enter:active {
             background: #be123c;
             border-bottom-width: 1px;
+        }
+        .key-with-shortcut {
+            position: relative;
+        }
+        .key-shortcut {
+            position: absolute;
+            right: 0.45rem;
+            bottom: 0.35rem;
+            padding: 0.12rem 0.34rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(15, 23, 42, 0.9);
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.62rem;
+            line-height: 1;
+            letter-spacing: 0;
+            pointer-events: none;
         }
 
         /* Custom Scrollbar */
@@ -541,7 +562,10 @@
                 <!-- Numpad -->
                 <div class="flex-1 grid grid-cols-4 grid-rows-5 gap-3">
                     <button id="clearEntry" class="key rounded-xl text-xl font-black text-rose-500 flex items-center justify-center">C</button>
-                    <button id="multiply" class="key rounded-xl text-xl font-black text-amber-500 flex items-center justify-center"><span class="material-symbols-outlined">close</span></button>
+                    <button id="multiply" title="Multiply (* key)" aria-label="Multiply (* key)" class="key key-with-shortcut rounded-xl text-xl font-black text-amber-500 flex items-center justify-center">
+                        <span aria-hidden="true" class="text-3xl leading-none">×</span>
+                        <span class="key-shortcut">*</span>
+                    </button>
                     <button id="discOverride" class="key rounded-xl text-xl font-black text-sky-400 flex items-center justify-center"><span class="material-symbols-outlined">percent</span></button>
                     <button id="backspace" class="key rounded-xl text-xl font-black text-slate-400 flex items-center justify-center"><span class="material-symbols-outlined">backspace</span></button>
 
@@ -697,7 +721,7 @@
     </div>
 
     <!-- Scripts -->
-    <script src="database.js"></script>
+    <script src="database.js?v=20260525c"></script>
     <script>
     // Auth Gate inline script adaptation
     let isRegistrationMode = false;
@@ -709,12 +733,7 @@
             updateHeaderUser();
             return;
         }
-        try {
-            const health = await fetch(`${getApiBase()}/health`);
-            if (health.ok) showLoginScreen();
-        } catch {
-            showLoginScreen();
-        }
+        showLoginScreen();
     }
 
     function showLoginScreen() {
@@ -788,8 +807,8 @@
 
     initAuthGate();
     </script>
-    <script type="module" src="js/override.js?v=20260522j"></script>
+    <script type="module" src="js/override.js?v=20260524d"></script>
     <!-- New Modular Architecture Entry Point -->
-    <script type="module" src="js/main.js?v=20260522j"></script>
+    <script type="module" src="js/main.js?v=20260525d"></script>
 </body>
 </html>

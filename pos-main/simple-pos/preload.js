@@ -4,7 +4,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
     'electronAPI', {
-    printReceipt: (html) => ipcRenderer.send('print-receipt', html),
+    printReceipt: (html) => ipcRenderer.invoke('print-receipt', html),
     setSystemTime: (datetime) => ipcRenderer.invoke('set-system-time', datetime)
 }
 );
@@ -12,5 +12,3 @@ contextBridge.exposeInMainWorld(
 window.addEventListener('DOMContentLoaded', () => {
     console.log('Fashion Shaa POS Loaded');
 });
-
-/* placeholder aria-label */

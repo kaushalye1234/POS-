@@ -5,6 +5,12 @@
 let currentTab = 'daily';
 let currentDate = new Date();
 let salesChart = null;
+let authRedirectScheduled = false;
+let latestRecordedSaleDate = null;
+let analyticsRefreshTimer = null;
+let salesRealtimeChannel = null;
+let currentInvoiceSaleId = null;
+let currentInvoiceSale = null;
 
 function setAnalyticsStatus(message, type = 'info') {
     const status = document.getElementById('analyticsStatus');
@@ -25,6 +31,22 @@ function setAnalyticsStatus(message, type = 'info') {
 
     status.className = `w-full max-w-[720px] rounded-xl border px-4 py-3 text-sm font-semibold ${typeClasses[type] || typeClasses.info}`;
     status.textContent = message;
+}
+
+function setInvoiceAnnotationStatus(message = '', tone = 'muted') {
+    const element = document.getElementById('invoiceAnnotationStatus');
+    if (!element) return;
+
+    element.textContent = message;
+    element.className = 'mt-3 text-xs font-semibold';
+
+    if (tone === 'success') {
+        element.classList.add('text-emerald-400');
+    } else if (tone === 'error') {
+        element.classList.add('text-rose-400');
+    } else {
+        element.classList.add('text-slate-400');
+    }
 }
 
 function getSaleDateObject(sale) {
@@ -53,35 +75,107 @@ function getSaleDateObject(sale) {
     return null;
 }
 
+function formatAnalyticsDate(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('en-LK', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+function isSamePeriod(a, b, tab = currentTab) {
+    if (!(a instanceof Date) || Number.isNaN(a.getTime()) || !(b instanceof Date) || Number.isNaN(b.getTime())) {
+        return false;
+    }
+
+    if (tab === 'daily') {
+        return a.getFullYear() === b.getFullYear()
+            && a.getMonth() === b.getMonth()
+            && a.getDate() === b.getDate();
+    }
+
+    if (tab === 'monthly') {
+        return a.getFullYear() === b.getFullYear()
+            && a.getMonth() === b.getMonth();
+    }
+
+    return a.getFullYear() === b.getFullYear();
+}
+
+async function refreshLatestRecordedSaleDate() {
+    const sales = await getAllSales();
+    latestRecordedSaleDate = sales
+        .map(getSaleDateObject)
+        .filter(Boolean)
+        .sort((a, b) => b - a)[0] || null;
+
+    return latestRecordedSaleDate;
+}
+
+function isAuthError(error) {
+    const message = String(error?.message || error || '').toLowerCase();
+    return message.includes('no token provided')
+        || message.includes('access denied')
+        || message.includes('session expired')
+        || message.includes('unauthorized');
+}
+
+function redirectToPosLogin() {
+    const targetUrl = new URL('index.html', window.location.href).href;
+
+    if (window.top && window.top !== window) {
+        window.top.location.replace(targetUrl);
+        return;
+    }
+
+    window.location.replace(targetUrl);
+}
+
+function handleAnalyticsAuthFailure() {
+    setAnalyticsStatus('Please sign in from the POS screen to view analytics. Redirecting now...', 'error');
+
+    if (authRedirectScheduled) return true;
+    authRedirectScheduled = true;
+
+    window.setTimeout(() => {
+        redirectToPosLogin();
+    }, 900);
+
+    return true;
+}
+
 async function initializeCurrentPeriodFromSales() {
     try {
-        const sales = await getAllSales();
-        if (!sales.length) {
+        const latestSaleDate = await refreshLatestRecordedSaleDate();
+        if (!latestSaleDate) {
             setAnalyticsStatus('No sales records found yet. Add a sale from the POS to populate analytics.', 'warning');
             return;
         }
-
-        const latestSaleDate = sales
-            .map(getSaleDateObject)
-            .filter(Boolean)
-            .sort((a, b) => b - a)[0];
-
-        if (latestSaleDate) {
-            currentDate = latestSaleDate;
-            setAnalyticsStatus(`Connected to sales data. Showing the latest recorded period from ${latestSaleDate.toLocaleDateString('en-LK')}.`, 'success');
-        }
     } catch (error) {
         console.warn('Could not initialize analytics period from sales data:', error);
+        if (isAuthError(error)) {
+            handleAnalyticsAuthFailure();
+            return;
+        }
         setAnalyticsStatus(error?.message || 'Could not load analytics data from the database.', 'error');
     }
 }
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
+    if (window.POS_API?.isAuthenticated && !window.POS_API.isAuthenticated()) {
+        handleAnalyticsAuthFailure();
+        return;
+    }
+
     await initDatabase();
     await initializeCurrentPeriodFromSales();
     setupEventListeners();
+    setupRealtimeSalesRefresh();
     loadData();
+    startAnalyticsAutoRefresh();
 });
 
 // Setup event listeners
@@ -117,8 +211,54 @@ function navigatePeriod(direction) {
     loadData();
 }
 
+function startAnalyticsAutoRefresh() {
+    if (analyticsRefreshTimer) return;
+
+    analyticsRefreshTimer = window.setInterval(() => {
+        if (document.hidden) return;
+        loadData({ refreshLatestSaleDate: true });
+    }, 30000);
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            loadData({ refreshLatestSaleDate: true });
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        loadData({ refreshLatestSaleDate: true });
+    });
+}
+
+function refreshAnalyticsFromExternalSale() {
+    if (authRedirectScheduled || document.hidden) return;
+    loadData({ refreshLatestSaleDate: true });
+}
+
+function setupRealtimeSalesRefresh() {
+    const eventKey = window.POS_API?.SALES_SYNC_EVENT_KEY || 'pos_last_sale_event';
+    const channelName = window.POS_API?.SALES_SYNC_CHANNEL || 'fashion-shaa-pos-sync';
+
+    window.addEventListener('storage', (event) => {
+        if (event.key !== eventKey || !event.newValue) return;
+        refreshAnalyticsFromExternalSale();
+    });
+
+    if ('BroadcastChannel' in window) {
+        try {
+            salesRealtimeChannel = new BroadcastChannel(channelName);
+            salesRealtimeChannel.addEventListener('message', (event) => {
+                if (event?.data?.type !== 'sale-recorded') return;
+                refreshAnalyticsFromExternalSale();
+            });
+        } catch (error) {
+            console.warn('Realtime sales refresh channel unavailable:', error);
+        }
+    }
+}
+
 // Load data based on current tab
-async function loadData() {
+async function loadData({ refreshLatestSaleDate: shouldRefreshLatest = false } = {}) {
     updatePeriodDisplay();
 
     let startDate, endDate;
@@ -138,18 +278,30 @@ async function loadData() {
     }
 
     try {
+        if (shouldRefreshLatest || !latestRecordedSaleDate) {
+            await refreshLatestRecordedSaleDate();
+        }
         const sales = await getSalesByDateRange(startDate, endDate);
         updateStats(sales);
         updateChart(sales);
         updatePerformanceTable(sales);
         updateTransactionsTable(sales);
         if (sales.length === 0) {
-            setAnalyticsStatus(`No sales were recorded for ${document.getElementById('currentPeriod').textContent}.`, 'warning');
+            const periodLabel = document.getElementById('currentPeriod').textContent;
+            if (latestRecordedSaleDate && !isSamePeriod(latestRecordedSaleDate, currentDate, currentTab)) {
+                setAnalyticsStatus(`No sales were recorded for ${periodLabel}. Latest recorded sales were on ${formatAnalyticsDate(latestRecordedSaleDate)}.`, 'warning');
+            } else {
+                setAnalyticsStatus(`No sales were recorded for ${periodLabel}.`, 'warning');
+            }
         } else {
             setAnalyticsStatus(`Loaded ${sales.length} sale${sales.length === 1 ? '' : 's'} for ${document.getElementById('currentPeriod').textContent}.`, 'success');
         }
     } catch (err) {
         console.error('Failed to load data:', err);
+        if (isAuthError(err)) {
+            handleAnalyticsAuthFailure();
+            return;
+        }
         setAnalyticsStatus(err?.message || 'Failed to load analytics data from the database.', 'error');
     }
 }
@@ -174,6 +326,13 @@ function updatePeriodDisplay() {
 // Format currency
 function formatCurrency(amount) {
     return 'Rs.' + amount.toLocaleString('en-LK', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function formatReceiptAmount(amount) {
+    return Number(amount || 0).toLocaleString('en-LK', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
@@ -345,6 +504,8 @@ async function viewInvoice(saleId) {
 
         // Fetch sale items
         const items = await getSaleItemsBySaleId(saleId);
+        currentInvoiceSaleId = String(sale._id || sale.id);
+        currentInvoiceSale = sale;
 
         // Render invoice modal
         renderInvoiceModal(sale, items);
@@ -362,95 +523,113 @@ function renderInvoiceModal(sale, items) {
     const invoiceContent = document.getElementById('invoiceContent');
 
     const itemsHtml = items.map(item => `
-        <tr>
-            <td style="text-align: left;">${escapeHtml(item.itemName)}</td>
-            <td style="text-align: right;">${formatCurrency(item.unitPrice)}</td>
-            <td style="text-align: center; font-weight: 600;">${item.quantity}</td>
-            <td style="text-align: right; font-weight: bold;">${formatCurrency(item.totalPrice)}</td>
-        </tr>
+        <div class="receipt-item-row">
+            <span class="receipt-item-name">${escapeHtml(item.itemName)} x${escapeHtml(String(item.quantity || 0))}</span>
+            <span class="receipt-item-amount">${formatReceiptAmount(item.totalPrice)}</span>
+        </div>
     `).join('');
 
-    const netAmount = sale.subTotal || sale.totalAmount;
+    const netAmount = Number(sale.subTotal || sale.totalAmount || 0);
     const discount = sale.discount || 0;
+    const amountReceived = Number(sale.amountReceived ?? sale.totalAmount ?? 0);
+    const changeAmount = Number(sale.changeAmount ?? 0);
+    const settlementLabel = changeAmount < 0 ? 'Due' : 'Change';
+    const settlementAmount = Math.abs(changeAmount);
 
     invoiceContent.innerHTML = `
-        <div style="background: var(--bg-input); padding: 20px; border-radius: 8px;">
-            <div style="text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px dashed var(--border);">
-                <div class="brand-logo" style="display: inline-flex; margin-bottom: 10px;">
-                    <span class="brand-fashion">FASHION</span>
-                    <span class="brand-shaa">SHAA</span>
-                </div>
-                <div style="font-size: 0.875rem; color: var(--text-secondary);">
-                    188, Kachcheri Idiripita,<br>
-                    Kada 12, Anuradhapura.<br>
-                    Tel: 025 2053465
-                </div>
+        <div class="receipt-paper rounded-lg">
+            <div class="receipt-logo">
+                <span class="receipt-logo-block receipt-logo-red">FASHION</span>
+                <span class="receipt-logo-block receipt-logo-black">SHAA</span>
             </div>
-            
-            <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 2px dashed var(--border);">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span style="color: var(--text-secondary);">Sale ID:</span>
-                    <span style="font-weight: 600;">#${sale._id || sale.id}</span>
+            <div class="receipt-text">
+                <div class="receipt-separator">========================================</div>
+                <div class="receipt-center-line">Textiles &amp; Readymade Garments</div>
+                <div class="receipt-center-line">188, Kachcheri Idiripita,</div>
+                <div class="receipt-center-line">Kada 12, Anuradhapura.</div>
+                <div class="receipt-center-line">Tel: 025 2053465</div>
+                <div class="receipt-separator">========================================</div>
+                <div class="receipt-title">SALES RECEIPT</div>
+
+                <div class="receipt-meta-row">
+                    <span>Date: ${escapeHtml(sale.saleDate || '-')}</span>
+                    <span>Time: ${escapeHtml(sale.saleTime || '-')}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span style="color: var(--text-secondary);">Date:</span>
-                    <span>${sale.saleDate}</span>
+                <div class="receipt-meta-row">
+                    <span>Employee: ${escapeHtml(sale.employeeId || '-')}</span>
+                    <span>Receipt: ${escapeHtml(sale.receiptId || sale.id || '-')}</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span style="color: var(--text-secondary);">Time:</span>
-                    <span>${sale.saleTime}</span>
+
+                <div class="receipt-separator">----------------------------------------</div>
+                <div class="receipt-item-row receipt-items-header">
+                    <span>ITEM</span>
+                    <span>TOTAL</span>
                 </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <span style="color: var(--text-secondary);">Employee:</span>
-                    <span>${sale.employeeId}</span>
-                </div>
-            </div>
-            
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--border);">
-                        <th style="text-align: left; padding: 8px 0; color: var(--text-secondary); font-size: 0.875rem;">PRODUCT</th>
-                        <th style="text-align: right; padding: 8px 0; color: var(--text-secondary); font-size: 0.875rem;">PRICE</th>
-                        <th style="text-align: center; padding: 8px 0; color: var(--text-secondary); font-size: 0.875rem;">QTY</th>
-                        <th style="text-align: right; padding: 8px 0; color: var(--text-secondary); font-size: 0.875rem;">AMOUNT</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-            </table>
-            
-            <div style="border-top: 2px dashed var(--border); padding-top: 15px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span>Items:</span>
-                    <span>${items.length}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span>Total Quantity:</span>
-                    <span>${items.reduce((sum, item) => sum + item.quantity, 0)}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                    <span>Net Amount:</span>
-                    <span>${formatCurrency(netAmount)}</span>
+                ${itemsHtml || '<div class="receipt-center-line">No items recorded.</div>'}
+
+                <div class="receipt-separator">----------------------------------------</div>
+                <div class="receipt-summary-row">
+                    <span>Subtotal:</span>
+                    <span>${formatReceiptAmount(netAmount)}</span>
                 </div>
                 ${discount > 0 ? `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--success);">
-                    <span>Discount (5%):</span>
-                    <span>-${formatCurrency(discount)}</span>
+                <div class="receipt-summary-row">
+                    <span>Discount:</span>
+                    <span>-${formatReceiptAmount(discount)}</span>
                 </div>
                 ` : ''}
-                <div style="display: flex; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 1.25rem; font-weight: 700;">
+                <div class="receipt-total-row">
                     <span>TOTAL:</span>
-                    <span style="color: var(--primary);">${formatCurrency(sale.totalAmount)}</span>
+                    <span>${formatReceiptAmount(sale.totalAmount)}</span>
                 </div>
+                <div class="receipt-summary-row">
+                    <span>Amount Received:</span>
+                    <span>${formatReceiptAmount(amountReceived)}</span>
+                </div>
+                <div class="receipt-summary-row">
+                    <span>${settlementLabel}:</span>
+                    <span>${formatReceiptAmount(settlementAmount)}</span>
+                </div>
+                <div class="receipt-separator">========================================</div>
+                <div class="receipt-footer">THANK YOU!</div>
+                <div class="receipt-footer">COME AGAIN!</div>
+                <div class="receipt-footer">COME WITHIN 7 DAYS</div>
             </div>
         </div>
     `;
+
+    const annotationInput = document.getElementById('invoiceAnnotationInput');
+    if (annotationInput) {
+        annotationInput.value = sale.notes || '';
+    }
+    setInvoiceAnnotationStatus(sale.notes ? 'Saved note loaded for this sale.' : 'No note saved for this sale yet.');
 }
 
 // Close invoice modal
 function closeInvoiceModal() {
     document.getElementById('invoiceModal').classList.remove('active');
+    currentInvoiceSaleId = null;
+    currentInvoiceSale = null;
+    setInvoiceAnnotationStatus('');
+}
+
+async function saveInvoiceAnnotation() {
+    if (!currentInvoiceSaleId) {
+        setInvoiceAnnotationStatus('Open a sale before saving an annotation.', 'error');
+        return;
+    }
+
+    const input = document.getElementById('invoiceAnnotationInput');
+    const notes = (input?.value || '').trim();
+
+    try {
+        const updatedSale = await updateSaleRecord(currentInvoiceSaleId, { notes });
+        currentInvoiceSale = updatedSale;
+        setInvoiceAnnotationStatus(notes ? 'Annotation saved successfully.' : 'Annotation cleared.', 'success');
+    } catch (error) {
+        console.error('Failed to save invoice annotation:', error);
+        setInvoiceAnnotationStatus(error?.message || 'Failed to save annotation.', 'error');
+    }
 }
 
 // Helper function to escape HTML
@@ -466,4 +645,5 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('invoiceModal').addEventListener('click', (e) => {
         if (e.target.id === 'invoiceModal') closeInvoiceModal();
     });
+    document.getElementById('saveInvoiceAnnotationBtn').addEventListener('click', saveInvoiceAnnotation);
 });

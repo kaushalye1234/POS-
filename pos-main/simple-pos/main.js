@@ -90,27 +90,89 @@ function createWindow() {
 }
 
 // Silent Printing Handler
-ipcMain.on('print-receipt', (event, html) => {
-    let printWin = new BrowserWindow({
-        show: false,
-        webPreferences: {
-            nodeIntegration: false,
-            contextIsolation: true
+ipcMain.handle('print-receipt', async (_event, html) => {
+    return await new Promise((resolve) => {
+        let printWin = null;
+        let settled = false;
+
+        const finish = (result) => {
+            if (settled) return;
+            settled = true;
+
+            try {
+                if (printWin && !printWin.isDestroyed()) {
+                    printWin.close();
+                }
+            } catch {
+                // Ignore close errors during shutdown.
+            }
+
+            resolve(result);
+        };
+
+        try {
+            printWin = new BrowserWindow({
+                show: false,
+                width: 420,
+                height: 760,
+                backgroundColor: '#ffffff',
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
+                }
+            });
+
+            const safeHtml = injectCspMeta(html, CSP);
+            printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(safeHtml)}`);
+
+            printWin.webContents.on('did-fail-load', (_loadEvent, errorCode, errorDescription) => {
+                console.error('Receipt window failed to load:', errorCode, errorDescription);
+                finish({ started: false, reason: errorDescription || `Load failed (${errorCode})` });
+            });
+
+            printWin.webContents.on('did-finish-load', async () => {
+                try {
+                    await printWin.webContents.executeJavaScript(`
+                        (async () => {
+                            if (document.fonts && document.fonts.ready) {
+                                try { await document.fonts.ready; } catch {}
+                            }
+                            return {
+                                bodyText: document.body ? document.body.innerText : '',
+                                htmlLength: document.documentElement ? document.documentElement.outerHTML.length : 0
+                            };
+                        })();
+                    `);
+                } catch (error) {
+                    console.error('Print document readiness check failed:', error);
+                }
+
+                setTimeout(() => {
+                    try {
+                        printWin.webContents.print({
+                            silent: true,
+                            printBackground: true,
+                            deviceName: '' // Uses default printer if empty
+                        }, (success, failureReason) => {
+                            if (!success) {
+                                console.error('Print failed:', failureReason);
+                            }
+
+                            finish({
+                                started: success,
+                                reason: failureReason || ''
+                            });
+                        });
+                    } catch (error) {
+                        console.error('Print dispatch threw before starting:', error);
+                        finish({ started: false, reason: error?.message || String(error) });
+                    }
+                }, 250);
+            });
+        } catch (error) {
+            console.error('Receipt print window could not be created:', error);
+            finish({ started: false, reason: error?.message || String(error) });
         }
-    });
-
-    const safeHtml = injectCspMeta(html, CSP);
-    printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(safeHtml)}`);
-
-    printWin.webContents.on('did-finish-load', () => {
-        printWin.webContents.print({
-            silent: true,
-            printBackground: true,
-            deviceName: '' // Uses default printer if empty
-        }, (success, failureReason) => {
-            if (!success) console.error('Print failed:', failureReason);
-            printWin.close();
-        });
     });
 });
 
@@ -152,5 +214,3 @@ app.on('ready', () => {
 app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
 });
-
-/* placeholder aria-label */

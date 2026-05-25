@@ -1,8 +1,8 @@
 import { state, eventTarget } from './state.js';
-import * as calc from './calculator.js';
-import * as cart from './cart.js';
-import * as checkout from './checkout.js';
-import * as barcode from './barcode.js';
+import * as calc from './calculator.js?v=20260524i';
+import * as cart from './cart.js?v=20260524i';
+import * as checkout from './checkout.js?v=20260525a';
+import * as barcode from './barcode.js?v=20260524i';
 
 // DOM Elements
 const UI = {
@@ -60,6 +60,7 @@ function init() {
     barcode.setupBarcodeScanner();
     cart.calculateTotals(); // Initial zero state
     updateCartUI();
+    updateCheckoutActionState();
 }
 
 function updateHeaderClock() {
@@ -114,32 +115,61 @@ function hasValidCheckoutEmployeeId() {
 
 function updateCheckoutEmployeePriorityState({ report = false } = {}) {
     const isValid = hasValidCheckoutEmployeeId();
+    const pendingPrintReceipt = checkout.getPendingPrintReceipt();
+    const validationRequired = !pendingPrintReceipt;
 
     if (UI.employeeId) {
-        UI.employeeId.setCustomValidity(isValid ? '' : 'Enter Employee ID before continuing.');
-        UI.employeeId.classList.toggle('border-rose-500', !isValid);
+        UI.employeeId.setCustomValidity(validationRequired && !isValid ? 'Enter Employee ID before continuing.' : '');
+        UI.employeeId.classList.toggle('border-rose-500', validationRequired && !isValid);
         UI.employeeId.classList.toggle('border-emerald-500', isValid);
     }
 
     if (UI.checkoutEmployeeHint) {
-        UI.checkoutEmployeeHint.textContent = isValid
-            ? 'Employee ID confirmed for this sale.'
-            : 'Enter employee ID before payment.';
-        UI.checkoutEmployeeHint.classList.toggle('text-rose-300', !isValid);
-        UI.checkoutEmployeeHint.classList.toggle('text-emerald-300', isValid);
+        if (pendingPrintReceipt) {
+            UI.checkoutEmployeeHint.textContent = `Sale saved as ${pendingPrintReceipt.receiptReference || 'the saved receipt'}. Retry printing below.`;
+        } else {
+            UI.checkoutEmployeeHint.textContent = isValid
+                ? 'Employee ID confirmed for this sale.'
+                : 'Enter employee ID before payment.';
+        }
+
+        UI.checkoutEmployeeHint.classList.toggle('text-rose-300', !isValid && !pendingPrintReceipt);
+        UI.checkoutEmployeeHint.classList.toggle('text-emerald-300', isValid && !pendingPrintReceipt);
+        UI.checkoutEmployeeHint.classList.toggle('text-amber-300', Boolean(pendingPrintReceipt));
     }
 
-    if (!isValid && report && UI.employeeId) {
+    if (validationRequired && !isValid && report && UI.employeeId) {
         UI.employeeId.focus();
         UI.employeeId.reportValidity();
     }
 
-    return isValid;
+    return validationRequired ? isValid : true;
 }
 
 function focusPriorityCheckoutField() {
-    const target = hasValidCheckoutEmployeeId() ? UI.amountReceived : UI.employeeId;
+    const target = checkout.hasPendingPrintReceipt()
+        ? UI.printReceiptBtn
+        : (hasValidCheckoutEmployeeId() ? UI.amountReceived : UI.employeeId);
     target?.focus();
+}
+
+function updateCheckoutActionState() {
+    const pendingPrintReceipt = checkout.getPendingPrintReceipt();
+
+    if (UI.printReceiptBtn) {
+        UI.printReceiptBtn.innerHTML = pendingPrintReceipt
+            ? '<span class="material-symbols-outlined">print</span> Retry Print'
+            : '<span class="material-symbols-outlined">print</span> Complete & Print';
+    }
+}
+
+function addCurrentItem(discountEligible = false) {
+    const multiplyResult = calc.resolveMultiplyModeForAdd();
+    if (multiplyResult.blocked) {
+        return;
+    }
+
+    cart.addItem(discountEligible, UI.itemName.value, '');
 }
 
 async function triggerCheckoutPrint() {
@@ -153,6 +183,9 @@ async function triggerCheckoutPrint() {
         UI.checkoutCustomer?.options?.[UI.checkoutCustomer.selectedIndex]?.text,
         UI.amountReceived?.value
     );
+
+    updateCheckoutActionState();
+    updateCheckoutEmployeePriorityState();
 
     if (success) {
         UI.checkoutModal?.classList.remove('active');
@@ -168,6 +201,11 @@ function handleCheckoutKeydown(event) {
     event.preventDefault();
 
     if (event.target === UI.employeeId) {
+        if (checkout.hasPendingPrintReceipt()) {
+            void triggerCheckoutPrint();
+            return;
+        }
+
         if (!updateCheckoutEmployeePriorityState({ report: true })) {
             return;
         }
@@ -201,11 +239,11 @@ function bindEvents() {
 
     // Add items
     UI.addItem?.addEventListener('click', () => {
-        cart.addItem(false, UI.itemName.value, '');
+        addCurrentItem(false);
     });
     
     UI.discOverride?.addEventListener('click', () => {
-        cart.addItem(true, UI.itemName.value, '');
+        addCurrentItem(true);
     });
 
     UI.clearAll?.addEventListener('click', () => cart.clearAllItems());
@@ -216,12 +254,18 @@ function bindEvents() {
         UI.employeeId.value = getDefaultCheckoutEmployeeId();
         UI.amountReceived.value = '';
         checkout.calculateChange('');
+        updateCheckoutActionState();
         updateCheckoutEmployeePriorityState();
         UI.checkoutModal.classList.add('active');
         setTimeout(() => focusPriorityCheckoutField(), 100);
     });
 
     UI.closeModalBtn?.addEventListener('click', () => {
+        const pendingPrintReceipt = checkout.getPendingPrintReceipt();
+        if (pendingPrintReceipt) {
+            alert(`Sale ${pendingPrintReceipt.receiptReference || 'the saved receipt'} is already saved. Use Retry Print to try again, or New Sale if you want to leave printing for Invoice History.`);
+            return;
+        }
         UI.checkoutModal.classList.remove('active');
     });
 
@@ -243,6 +287,18 @@ function bindEvents() {
     });
 
     UI.newSaleBtn?.addEventListener('click', () => {
+        const pendingPrintReceipt = checkout.getPendingPrintReceipt();
+        if (pendingPrintReceipt) {
+            const confirmed = confirm(`Sale ${pendingPrintReceipt.receiptReference || 'the saved receipt'} is already saved, but the receipt has not printed yet. Click OK to start a new sale now and print it later from Invoice History.`);
+            if (!confirmed) return;
+            checkout.discardPendingPrintReceipt();
+            cart.finalizeSaleReset();
+            updateCheckoutActionState();
+            updateCheckoutEmployeePriorityState();
+            UI.checkoutModal.classList.remove('active');
+            return;
+        }
+
         cart.clearAllItems();
         UI.checkoutModal.classList.remove('active');
     });
@@ -263,6 +319,10 @@ function bindEvents() {
     eventTarget.addEventListener('display:update', updateDisplayUI);
     eventTarget.addEventListener('quantity:update', updateQuantityUI);
     eventTarget.addEventListener('cart:updated', updateCartUI);
+    eventTarget.addEventListener('checkout:print_state_changed', () => {
+        updateCheckoutActionState();
+        updateCheckoutEmployeePriorityState();
+    });
     eventTarget.addEventListener('entry:hard_clear', () => {
         UI.itemName.value = '';
     });
@@ -273,6 +333,7 @@ function bindEvents() {
 function handleGlobalKeyboard(event) {
     if (event.defaultPrevented) return;
     if (!state.enableKeyboardShortcuts) return;
+    const isMultiplyShortcut = event.key === '*' || event.code === 'NumpadMultiply' || (event.shiftKey && event.code === 'Digit8');
 
     const isCheckoutOpen = UI.checkoutModal?.classList.contains('active');
     if (isCheckoutOpen) {
@@ -300,10 +361,22 @@ function handleGlobalKeyboard(event) {
         const isPosEntryField = activeElement === UI.itemName ||
             activeElement === UI.priceDisplay;
 
+        if (isPosEntryField && isMultiplyShortcut) {
+            event.preventDefault();
+            calc.multiply();
+            return;
+        }
+
         if (event.key === 'Enter' && isPosEntryField) {
             event.preventDefault();
             UI.addItem?.click();
         }
+        return;
+    }
+
+    if (isMultiplyShortcut) {
+        event.preventDefault();
+        calc.multiply();
         return;
     }
 
@@ -326,12 +399,6 @@ function handleGlobalKeyboard(event) {
     if (event.key === '+') {
         event.preventDefault();
         UI.addItem?.click();
-        return;
-    }
-
-    if (event.key === '*') {
-        event.preventDefault();
-        calc.multiply();
         return;
     }
 
@@ -371,13 +438,15 @@ function handleGlobalKeyboard(event) {
 
 function updateDisplayUI() {
     if (UI.priceDisplay) {
-        UI.priceDisplay.value = calc.formatNumber(parseFloat(state.currentPrice) || 0);
+        UI.priceDisplay.value = calc.formatNumber(calc.getDisplayAmount());
     }
 }
 
 function updateQuantityUI() {
     if (UI.quantity) {
-        UI.quantity.textContent = state.currentQuantity;
+        UI.quantity.textContent = state.multiplyMode
+            ? calc.getPendingMultiplier()
+            : state.currentQuantity;
     }
 }
 

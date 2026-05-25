@@ -43,6 +43,16 @@ const saleSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
+    paymentMethod: {
+        type: String,
+        default: 'CASH',
+        trim: true
+    },
+    status: {
+        type: String,
+        default: 'completed',
+        enum: ['completed', 'voided', 'refunded']
+    },
     itemsCount: {
         type: Number,
         required: true,
@@ -68,6 +78,12 @@ const saleSchema = new mongoose.Schema({
         type: String,
         default: null,
         trim: true
+    },
+    notes: {
+        type: String,
+        default: '',
+        trim: true,
+        maxlength: [1000, 'Notes cannot exceed 1000 characters']
     },
     items: [saleItemSchema],
     createdAt: { type: Date, default: Date.now }

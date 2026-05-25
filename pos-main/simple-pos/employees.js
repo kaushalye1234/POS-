@@ -13,6 +13,18 @@ let accessUsers = [];
 let attendanceCache = [];
 let advancesCache = [];
 
+function getTodayBusinessDateString() {
+    if (window.POS_API?.formatBusinessDate) {
+        return window.POS_API.formatBusinessDate(new Date());
+    }
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     currentAuthUser = window.POS_API?.getAuthUser?.() || null;
 
@@ -44,8 +56,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 function initWorkforceDefaults() {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getTodayBusinessDateString();
     const monthStr = todayStr.slice(0, 7);
 
     const attendanceDateInput = document.getElementById('attendanceDateInput');
@@ -1121,11 +1132,11 @@ function setSuggestedEmployeeId(force = false) {
 }
 
 function getSelectedAttendanceDate() {
-    return document.getElementById('attendanceDateInput')?.value || new Date().toISOString().split('T')[0];
+    return document.getElementById('attendanceDateInput')?.value || getTodayBusinessDateString();
 }
 
 function getSelectedPayrollMonth() {
-    return document.getElementById('payrollMonthInput')?.value || new Date().toISOString().slice(0, 7);
+    return document.getElementById('payrollMonthInput')?.value || getTodayBusinessDateString().slice(0, 7);
 }
 
 function attendanceClass(status) {

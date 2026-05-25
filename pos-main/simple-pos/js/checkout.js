@@ -18,73 +18,241 @@ export function calculateChange(amountReceivedStr) {
 }
 
 function printReceiptInBrowser(receiptHtml) {
-    return new Promise((resolve) => {
-        const printFrame = document.createElement('iframe');
+    const tryPopupPrint = () => new Promise((resolve) => {
+        let printWindow = null;
         let settled = false;
-
-        const removeFrame = () => {
-            window.setTimeout(() => {
-                if (printFrame.parentNode) {
-                    printFrame.remove();
-                }
-            }, 1000);
-        };
+        let printDispatched = false;
 
         const finish = (didStart) => {
             if (settled) return;
             settled = true;
-            window.clearTimeout(timeoutId);
-
-            if (didStart) {
-                removeFrame();
-            } else if (printFrame.parentNode) {
-                printFrame.remove();
-            }
-
             resolve(didStart);
         };
 
-        printFrame.setAttribute('aria-hidden', 'true');
-        printFrame.style.position = 'fixed';
-        printFrame.style.width = '0';
-        printFrame.style.height = '0';
-        printFrame.style.border = '0';
-        printFrame.style.opacity = '0';
-        printFrame.style.pointerEvents = 'none';
-        printFrame.style.right = '0';
-        printFrame.style.bottom = '0';
+        try {
+            printWindow = window.open('', '_blank', 'popup=yes,width=420,height=760');
+        } catch (error) {
+            console.error('Browser receipt popup could not be opened:', error);
+            resolve(false);
+            return;
+        }
 
-        printFrame.onload = () => {
+        if (!printWindow || printWindow.closed) {
+            resolve(false);
+            return;
+        }
+
+        const startPrint = async () => {
+            if (printDispatched) return;
+            printDispatched = true;
+
             try {
-                const printWindow = printFrame.contentWindow;
-                if (!printWindow) {
-                    finish(false);
-                    return;
-                }
+                await printWindow.document?.fonts?.ready?.catch?.(() => undefined);
+                printWindow.addEventListener('afterprint', () => {
+                    window.setTimeout(() => {
+                        try {
+                            if (!printWindow.closed) {
+                                printWindow.close();
+                            }
+                        } catch {
+                            // Ignore close errors after print.
+                        }
+                    }, 150);
+                }, { once: true });
 
-                printWindow.addEventListener('afterprint', () => finish(true), { once: true });
                 printWindow.focus();
                 printWindow.print();
-
-                // Some embedded print surfaces never fire afterprint reliably.
-                window.setTimeout(() => finish(true), 400);
+                finish(true);
             } catch (error) {
-                console.error('Browser print fallback failed:', error);
+                console.error('Browser popup print start failed:', error);
+                try {
+                    printWindow.close();
+                } catch {
+                    // Ignore cleanup errors when popup print fails.
+                }
                 finish(false);
             }
         };
 
-        const timeoutId = window.setTimeout(() => {
-            console.error('Browser print fallback timed out before starting.');
-            finish(false);
-        }, 5000);
+        try {
+            printWindow.document.open();
+            printWindow.document.write(receiptHtml);
+            printWindow.document.close();
 
-        document.body.appendChild(printFrame);
-        printFrame.srcdoc = receiptHtml;
+            if (printWindow.document.readyState === 'complete') {
+                window.setTimeout(startPrint, 120);
+            } else {
+                printWindow.addEventListener('load', () => {
+                    window.setTimeout(startPrint, 120);
+                }, { once: true });
+            }
+
+            window.setTimeout(() => {
+                if (!settled) {
+                    startPrint();
+                }
+            }, 700);
+        } catch (error) {
+            console.error('Browser popup receipt write failed:', error);
+            try {
+                printWindow.close();
+            } catch {
+                // Ignore close errors while falling back.
+            }
+            finish(false);
+        }
+    });
+
+    return tryPopupPrint().then((popupResult) => {
+        if (popupResult) {
+            return true;
+        }
+
+        return new Promise((resolve) => {
+            const printFrame = document.createElement('iframe');
+            let settled = false;
+            let receiptUrl = null;
+
+            const removeFrame = () => {
+                window.setTimeout(() => {
+                    if (printFrame.parentNode) {
+                        printFrame.remove();
+                    }
+                    if (receiptUrl) {
+                        URL.revokeObjectURL(receiptUrl);
+                        receiptUrl = null;
+                    }
+                }, 1000);
+            };
+
+            const finish = (didStart) => {
+                if (settled) return;
+                settled = true;
+                window.clearTimeout(timeoutId);
+
+                if (didStart) {
+                    removeFrame();
+                } else if (printFrame.parentNode) {
+                    printFrame.remove();
+                }
+
+                resolve(didStart);
+            };
+
+            printFrame.setAttribute('aria-hidden', 'true');
+            printFrame.style.position = 'fixed';
+            printFrame.style.width = '360px';
+            printFrame.style.height = '640px';
+            printFrame.style.border = '0';
+            printFrame.style.opacity = '0.01';
+            printFrame.style.pointerEvents = 'none';
+            printFrame.style.left = '-10000px';
+            printFrame.style.top = '0';
+            printFrame.style.background = '#fff';
+
+            printFrame.onload = async () => {
+                try {
+                    const printWindow = printFrame.contentWindow;
+                    if (!printWindow) {
+                        finish(false);
+                        return;
+                    }
+
+                    await printWindow.document?.fonts?.ready?.catch?.(() => undefined);
+                    printWindow.addEventListener('afterprint', () => finish(true), { once: true });
+                    window.setTimeout(() => {
+                        try {
+                            printWindow.focus();
+                            printWindow.print();
+                        } catch (error) {
+                            console.error('Browser print start failed:', error);
+                            finish(false);
+                        }
+                    }, 150);
+
+                    // Some embedded print surfaces never fire afterprint reliably.
+                    window.setTimeout(() => finish(true), 1200);
+                } catch (error) {
+                    console.error('Browser print fallback failed:', error);
+                    finish(false);
+                }
+            };
+
+            const timeoutId = window.setTimeout(() => {
+                console.error('Browser print fallback timed out before starting.');
+                finish(false);
+            }, 5000);
+
+            document.body.appendChild(printFrame);
+            receiptUrl = URL.createObjectURL(new Blob([receiptHtml], { type: 'text/html;charset=utf-8' }));
+            printFrame.src = receiptUrl;
+        });
     });
 }
 
+function getSaleReceiptReference(savedSale) {
+    if (typeof window !== 'undefined' && window.POS_API && typeof window.POS_API.getSaleReceiptId === 'function') {
+        return window.POS_API.getSaleReceiptId(savedSale);
+    }
+
+    if (!savedSale || typeof savedSale !== 'object') return '';
+
+    const explicitReceiptId = String(savedSale.receiptId || '').trim();
+    if (explicitReceiptId) return explicitReceiptId;
+
+    const recordId = String(savedSale._id || savedSale.id || '').trim();
+    return recordId ? `SALE-${recordId.slice(-6).toUpperCase()}` : '';
+}
+
+function setPendingPrintReceipt(pendingPrintReceipt) {
+    state.pendingPrintReceipt = pendingPrintReceipt;
+    emit('checkout:print_state_changed', { pendingPrintReceipt });
+}
+
+export function getPendingPrintReceipt() {
+    return state.pendingPrintReceipt;
+}
+
+export function hasPendingPrintReceipt() {
+    return Boolean(state.pendingPrintReceipt);
+}
+
+export function discardPendingPrintReceipt() {
+    setPendingPrintReceipt(null);
+}
+
+async function attemptReceiptPrint(receiptHtml) {
+    if (window.electronAPI && !state.testingMode) {
+        try {
+            const result = await window.electronAPI.printReceipt(receiptHtml);
+            if (typeof result === 'boolean') return result;
+            if (result && typeof result === 'object') {
+                return result.started !== false && result.ok !== false && result.success !== false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Electron receipt print failed:', error);
+            return false;
+        }
+    }
+
+    return printReceiptInBrowser(receiptHtml);
+}
+
 export async function printReceiptAndSave(employeeIdRaw, customerIdRaw, customerNameRaw, amountReceivedStr) {
+    const pendingPrintReceipt = getPendingPrintReceipt();
+    if (pendingPrintReceipt) {
+        const printStarted = await attemptReceiptPrint(pendingPrintReceipt.receiptHtml);
+        if (!printStarted) {
+            alert(`Receipt printing still could not be started for ${pendingPrintReceipt.receiptReference || 'the saved sale'}. The sale is already saved. Click Retry Print again after checking the printer.`);
+            return false;
+        }
+
+        discardPendingPrintReceipt();
+        finalizeSaleReset();
+        return true;
+    }
+
     const rawId = parseInt(employeeIdRaw);
 
     if (!rawId || rawId < 1) {
@@ -98,29 +266,44 @@ export async function printReceiptAndSave(employeeIdRaw, customerIdRaw, customer
     const custId = customerIdRaw ? parseInt(customerIdRaw) : null;
     const custName = customerNameRaw || null;
     let savedSale = null;
+    const saleSaver = window.POS_API?.saveSale || window.saveSale;
+    const databaseReady = window.POS_API?.whenDatabaseReady;
+    const loyaltyUpdater = window.POS_API?.addLoyaltyPoints || window.updateCustomerLoyaltyPoints;
 
-    if (typeof window.saveSale === 'function' && window.db) {
-        try {
-            savedSale = await window.saveSale(
-                employeeId, 
-                totals.displayTotal, 
-                received, 
-                change, 
-                state.items, 
-                totals.discountAmount, 
-                custId, 
-                custName
-            );
-            console.log('Sale saved with record:', savedSale);
-            
-            if (custId && typeof window.updateCustomerLoyaltyPoints === 'function') {
-                const points = Math.floor(totals.displayTotal / 100); 
-                window.updateCustomerLoyaltyPoints(custId, points);
-            }
-        } catch (err) {
-            console.error('Failed to save sale:', err);
-            // BACK-003: Graceful failure
+    if (typeof saleSaver !== 'function') {
+        alert('Sales API is not ready yet. Please try again in a moment.');
+        return false;
+    }
+
+    try {
+        if (typeof databaseReady === 'function') {
+            await databaseReady();
         }
+
+        savedSale = await saleSaver(
+            employeeId, 
+            totals.displayTotal, 
+            received, 
+            change, 
+            state.items, 
+            totals.discountAmount, 
+            custId, 
+            custName
+        );
+        console.log('Sale saved with record:', savedSale);
+    } catch (err) {
+        console.error('Failed to save sale:', err);
+        alert(`Sale could not be saved: ${err?.message || err}. The receipt will not print and the cart will stay open.`);
+        return false;
+    }
+
+    try {
+        if (custId && typeof loyaltyUpdater === 'function') {
+            const points = Math.floor(totals.displayTotal / 100); 
+            await loyaltyUpdater(custId, points);
+        }
+    } catch (err) {
+        console.warn('Sale saved, but loyalty points update failed:', err);
     }
 
     // Print Receipt
@@ -148,25 +331,21 @@ export async function printReceiptAndSave(employeeIdRaw, customerIdRaw, customer
     };
 
     const receiptHtml = generateReceiptHtml(state.items, fullTotals, employeeId, receiptDiscountLabel, savedSale);
+    const receiptReference = getSaleReceiptReference(savedSale) || 'this saved receipt';
+    setPendingPrintReceipt({
+        receiptHtml,
+        receiptReference,
+        savedSale
+    });
 
-    let printStarted = false;
-
-    if (window.electronAPI && !state.testingMode) {
-        try {
-            window.electronAPI.printReceipt(receiptHtml);
-            printStarted = true;
-        } catch (error) {
-            console.error('Electron receipt print failed:', error);
-        }
-    } else {
-        printStarted = await printReceiptInBrowser(receiptHtml);
-    }
+    const printStarted = await attemptReceiptPrint(receiptHtml);
 
     if (!printStarted) {
-        alert('Printing could not be started. The sale is still open, so please try again.');
+        alert(`Sale saved as ${receiptReference}, but receipt printing did not start. Click Retry Print to try again. Use New Sale only if you want to print it later from Invoice History.`);
         return false;
     }
 
+    discardPendingPrintReceipt();
     finalizeSaleReset();
     return true;
 }

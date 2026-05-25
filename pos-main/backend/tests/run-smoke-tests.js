@@ -1,6 +1,8 @@
 const { spawn } = require('child_process');
 const fetch = global.fetch || require('node-fetch');
 const mongoose = require('mongoose');
+const config = require('../config');
+const { getBusinessTimestampParts } = require('../utils/businessTime');
 const { registerOrLogin, jsonHeaders } = require('./auth-helper');
 
 async function waitForServer(child, timeout = 15000) {
@@ -77,9 +79,10 @@ async function run() {
 
         // 4) Post a sale using barcode-derived SKU
         const now = new Date();
+        const businessNow = getBusinessTimestampParts(now, config.businessTimeZone);
         const sale = {
             employeeId: 'EQA', totalAmount: 25, subTotal: 25, discount: 0, amountReceived: 25, changeAmount: 0,
-            itemsCount: 2, saleDate: now.toISOString().split('T')[0], saleTime: now.toTimeString().split(' ')[0],
+            itemsCount: 2, saleDate: businessNow.saleDate, saleTime: businessNow.saleTime,
             items: [{ sku: 'QA-SKU-1', itemName: 'QA Barcode Item', quantity: 2, unitPrice: 12.5, totalPrice: 25 }]
         };
         resp = await fetch(`${base}/api/sales`, { method: 'POST', headers, body: JSON.stringify(sale) });
