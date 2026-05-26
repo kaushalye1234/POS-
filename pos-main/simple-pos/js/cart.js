@@ -13,7 +13,7 @@ function getStorage() {
     };
 }
 
-export function addItem(discountEligible, itemName = '', category = '', skipPopup = false) {
+export function addItem(discountEligible, itemName = '', category = '', skipPopup = false, itemMeta = {}) {
     const price = parseFloat(state.currentPrice);
     if (price <= 0) {
         emit('cart:invalid_price');
@@ -24,7 +24,10 @@ export function addItem(discountEligible, itemName = '', category = '', skipPopu
         price,
         quantity: state.currentQuantity,
         discountEligible,
-        category
+        category,
+        sku: itemMeta.sku || null,
+        priceFromBarcode: Boolean(itemMeta.priceFromBarcode),
+        entryMode: itemMeta.entryMode || (itemMeta.sku ? 'inventory' : 'manual')
     };
 
     if (itemName.trim() !== '') {
@@ -49,11 +52,14 @@ export function finalizeAddItem(itemData) {
     const item = {
         id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
         name: itemData.name,
+        sku: itemData.sku || null,
         category: itemData.category,
         price: itemData.price,
         quantity: itemData.quantity,
         total: lineTotal,
-        discountEligible: itemData.discountEligible
+        discountEligible: itemData.discountEligible,
+        priceFromBarcode: Boolean(itemData.priceFromBarcode),
+        entryMode: itemData.entryMode || (itemData.sku ? 'inventory' : 'manual')
     };
 
     state.items.push(item);

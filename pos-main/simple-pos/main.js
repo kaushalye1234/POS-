@@ -1,24 +1,165 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
+const net = require('net');
+const { spawn } = require('child_process');
 
 const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'";
 
 let mainWindow;
+let backendBootPromise = null;
+
+function resolveBackendPath(...segments) {
+    const packagedCandidate = path.join(__dirname, 'backend', ...segments);
+    if (fs.existsSync(packagedCandidate)) {
+        return packagedCandidate;
+    }
+
+    return path.join(__dirname, '..', 'backend', ...segments);
+}
+
+const runtimeEnvironment = require(resolveBackendPath('runtimeEnvironment.js'));
+const appMode = process.argv.includes('--bootstrap-admin')
+    ? 'bootstrap-admin'
+    : (process.argv.includes('--backend') ? 'backend' : 'frontend');
+const isServiceMode = appMode !== 'frontend';
 
 if (process.platform === 'win32') {
     app.setAppUserModelId('com.fashionshaa.pos');
 }
 
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-    app.quit();
-} else {
-    app.on('second-instance', () => {
-        if (!mainWindow) return;
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.focus();
+if (!isServiceMode) {
+    const gotTheLock = app.requestSingleInstanceLock();
+    if (!gotTheLock) {
+        app.quit();
+    } else {
+        app.on('second-instance', () => {
+            if (!mainWindow) return;
+            if (mainWindow.isMinimized()) mainWindow.restore();
+            mainWindow.focus();
+        });
+    }
+}
+
+function readCliValue(name, fallback = '') {
+    const exactFlag = `--${name}`;
+    const prefix = `${exactFlag}=`;
+
+    for (let index = 0; index < process.argv.length; index += 1) {
+        const arg = process.argv[index];
+        if (arg.startsWith(prefix)) {
+            return arg.slice(prefix.length);
+        }
+        if (arg === exactFlag && process.argv[index + 1]) {
+            return process.argv[index + 1];
+        }
+    }
+
+    return fallback;
+}
+
+function getBackendRuntimePaths() {
+    const directories = runtimeEnvironment.ensureRuntimeDirectories();
+    const stdoutLogPath = path.join(directories.logDir, 'backend-launch.out.log');
+    const stderrLogPath = path.join(directories.logDir, 'backend-launch.err.log');
+
+    return {
+        ...directories,
+        envPath: runtimeEnvironment.getRuntimeEnvPath(),
+        templateEnvPath: runtimeEnvironment.getBundledEnvTemplatePath(),
+        stdoutLogPath,
+        stderrLogPath
+    };
+}
+
+function isBackendListening({ host = '127.0.0.1', port = 5000, timeoutMs = 700 } = {}) {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+        let settled = false;
+
+        const finish = (result) => {
+            if (settled) return;
+            settled = true;
+            socket.destroy();
+            resolve(result);
+        };
+
+        socket.setTimeout(timeoutMs);
+        socket.once('connect', () => finish(true));
+        socket.once('timeout', () => finish(false));
+        socket.once('error', () => finish(false));
+        socket.connect(port, host);
     });
+}
+
+async function ensureBundledBackendRunning() {
+    if (!app.isPackaged) return { started: false, reason: 'development-mode' };
+    if (backendBootPromise) return backendBootPromise;
+
+    backendBootPromise = (async () => {
+        if (await isBackendListening()) {
+            return { started: false, reason: 'already-running' };
+        }
+
+        const runtimePaths = getBackendRuntimePaths();
+        const stdoutFd = fs.openSync(runtimePaths.stdoutLogPath, 'a');
+        const stderrFd = fs.openSync(runtimePaths.stderrLogPath, 'a');
+
+        try {
+            const child = spawn(app.getPath('exe'), ['--backend'], {
+                cwd: path.dirname(app.getPath('exe')),
+                detached: true,
+                env: {
+                    ...process.env,
+                    FASHION_SHAA_RUNTIME_DIR: runtimePaths.rootDir,
+                    FASHION_SHAA_ENV_PATH: runtimePaths.envPath,
+                    FASHION_SHAA_TEMPLATE_ENV_PATH: runtimePaths.templateEnvPath
+                },
+                stdio: ['ignore', stdoutFd, stderrFd],
+                windowsHide: true
+            });
+            child.unref();
+            return { started: true, pid: child.pid };
+        } finally {
+            fs.closeSync(stdoutFd);
+            fs.closeSync(stderrFd);
+        }
+    })();
+
+    return backendBootPromise;
+}
+
+async function runBackendServiceMode() {
+    const runtimePaths = getBackendRuntimePaths();
+    process.env.FASHION_SHAA_RUNTIME_DIR = runtimePaths.rootDir;
+    process.env.FASHION_SHAA_ENV_PATH = runtimePaths.envPath;
+    process.env.FASHION_SHAA_TEMPLATE_ENV_PATH = runtimePaths.templateEnvPath;
+
+    const { startServer } = require(resolveBackendPath('server.js'));
+    await startServer();
+}
+
+async function runBootstrapAdminMode() {
+    const runtimePaths = getBackendRuntimePaths();
+    process.env.FASHION_SHAA_RUNTIME_DIR = runtimePaths.rootDir;
+    process.env.FASHION_SHAA_ENV_PATH = runtimePaths.envPath;
+    process.env.FASHION_SHAA_TEMPLATE_ENV_PATH = runtimePaths.templateEnvPath;
+
+    const { bootstrapAdmin } = require(resolveBackendPath('scripts', 'bootstrap-admin.js'));
+    const summary = await bootstrapAdmin({
+        username: readCliValue('admin-username', process.env.FASHION_SHAA_ADMIN_USERNAME || 'admin'),
+        password: readCliValue('admin-password', process.env.FASHION_SHAA_ADMIN_PASSWORD || 'adminpassword'),
+        pin: readCliValue('admin-pin', process.env.FASHION_SHAA_ADMIN_PIN || '1234'),
+        employeeId: readCliValue('admin-employee-id', process.env.FASHION_SHAA_ADMIN_EMPLOYEE_ID || 'E001')
+    });
+
+    const resultFile = readCliValue('result-file', '');
+    if (resultFile) {
+        fs.writeFileSync(resultFile, JSON.stringify(summary, null, 2), 'utf8');
+    }
+
+    process.stdout.write(`${JSON.stringify(summary)}\n`);
+    app.exit(0);
 }
 
 function isSafeInternalUrl(url) {
@@ -61,16 +202,32 @@ function createWindow() {
     mainWindow = win;
 
     // Block popups and unexpected navigations; open external links in the OS browser
+    // FIXED: Add domain allowlist for security
+    const ALLOWED_DOMAINS = [
+        'https://example.com',
+        'https://help.example.com',
+        'https://support.example.com'
+    ];
+    
+    function isAllowedUrl(url) {
+        try {
+            const parsed = new URL(url);
+            return ALLOWED_DOMAINS.some(allowed => parsed.href.startsWith(allowed));
+        } catch {
+            return false;
+        }
+    }
+    
     win.webContents.setWindowOpenHandler(({ url }) => {
         if (isSafeInternalUrl(url)) return { action: 'allow' };
-        if (url) shell.openExternal(url);
+        if (url && isAllowedUrl(url)) shell.openExternal(url);
         return { action: 'deny' };
     });
 
     win.webContents.on('will-navigate', (event, url) => {
         if (isSafeInternalUrl(url)) return;
         event.preventDefault();
-        if (url) shell.openExternal(url);
+        if (url && isAllowedUrl(url)) shell.openExternal(url);
     });
 
     win.loadFile('index.html');
@@ -179,31 +336,42 @@ ipcMain.handle('print-receipt', async (_event, html) => {
 
 
 // Handle System Time Change
-ipcMain.handle('set-system-time', async (_event, datetime) => {
-    return new Promise((resolve, reject) => {
-        // Expected format from renderer: MM-dd-yyyy HH:mm:ss
-        const dt = String(datetime || '').trim();
-        if (!/^\d{2}-\d{2}-\d{4} \d{2}:\d{2}:\d{2}$/.test(dt)) {
-            return reject('Invalid datetime format. Expected MM-dd-yyyy HH:mm:ss');
-        }
-
-        // Defense-in-depth (dt should not contain quotes because of the regex)
-        const safeDt = dt.replace(/'/g, "''");
-
-        const cmd = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile -ExecutionPolicy Bypass -Command \\\"Set-Date -Date ''${safeDt}''\\\"' "`;
-
-        exec(cmd, (error) => {
-            if (error) {
-                console.error('Failed to set time:', error);
-                reject(error.message);
-            } else {
-                resolve('Time update initiated');
-            }
-        });
+// SECURITY FIX: Removed PowerShell execution due to security risks (RCE, privilege escalation)
+// If this feature is absolutely required, use a signed, dedicated admin helper executable instead
+// For now, this endpoint is disabled and returns an error
+ipcMain.handle('set-system-time', async (_event, _datetime) => {
+    return new Promise((_resolve, reject) => {
+        reject('System time modification feature has been disabled for security reasons. Contact your administrator if you need this functionality.');
     });
 });
 
-app.on('ready', () => {
+app.whenReady().then(async () => {
+    if (appMode === 'backend') {
+        try {
+            await runBackendServiceMode();
+        } catch (error) {
+            console.error('Bundled backend failed to start:', error);
+            app.exit(1);
+        }
+        return;
+    }
+
+    if (appMode === 'bootstrap-admin') {
+        try {
+            await runBootstrapAdminMode();
+        } catch (error) {
+            console.error('Admin bootstrap failed:', error);
+            app.exit(1);
+        }
+        return;
+    }
+
+    try {
+        await ensureBundledBackendRunning();
+    } catch (error) {
+        console.error('Failed to ensure bundled backend is running:', error);
+    }
+
     createWindow();
 
     app.on('activate', () => {
@@ -211,6 +379,8 @@ app.on('ready', () => {
     });
 });
 
-app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') app.quit();
-});
+if (!isServiceMode) {
+    app.on('window-all-closed', () => {
+        if (process.platform !== 'darwin') app.quit();
+    });
+}

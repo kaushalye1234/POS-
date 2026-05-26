@@ -22,9 +22,15 @@ function formatReceiptDateParts(rawValue) {
     if (!rawValue) return { date: '-', time: '-' };
     const parsed = new Date(rawValue);
     if (Number.isNaN(parsed.getTime())) return { date: '-', time: '-' };
+    const day = String(parsed.getDate()).padStart(2, '0');
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const year = parsed.getFullYear();
+    const hours = String(parsed.getHours()).padStart(2, '0');
+    const minutes = String(parsed.getMinutes()).padStart(2, '0');
+    const seconds = String(parsed.getSeconds()).padStart(2, '0');
     return {
-        date: parsed.toLocaleDateString('en-LK'),
-        time: parsed.toLocaleTimeString('en-LK')
+        date: `${day}/${month}/${year}`,
+        time: `${hours}:${minutes}:${seconds}`
     };
 }
 
@@ -322,7 +328,8 @@ async function viewInvoice(id) {
     if(items && items.length > 0) {
         document.getElementById('detItemsTable').innerHTML = items.map(item => `
             <div class="receipt-item-row">
-                <span class="receipt-item-name">${escHtml(item.itemName || item.name || 'Item')} x${escHtml(String(item.quantity || 0))}</span>
+                <span class="receipt-item-name">${escHtml(item.itemName || item.name || 'Item')}</span>
+                <span class="receipt-item-qty">${escHtml(String(item.quantity || 0))}</span>
                 <span class="receipt-item-amount">${formatReceiptAmount(item.totalPrice || ((item.unitPrice || item.price || 0) * Number(item.quantity || 0)))}</span>
             </div>
         `).join('');

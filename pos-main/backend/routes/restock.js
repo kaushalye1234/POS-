@@ -3,14 +3,16 @@ const router = express.Router();
 const Item = require('../models/Item');
 const Sale = require('../models/Sale');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { authenticateToken, authorize } = require('../middleware/auth');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // ============================================
 // POST /api/ai/restock-prediction
+// FIXED: Add authentication and authorization
 // AI-powered restock intelligence using SKU data
 // ============================================
-router.post('/restock-prediction', async (req, res, next) => {
+router.post('/restock-prediction', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         // Get current inventory levels
         const inventory = await Item.find().lean();

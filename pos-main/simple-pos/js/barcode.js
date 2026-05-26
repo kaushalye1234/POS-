@@ -57,11 +57,17 @@ async function processBarcode(barcode) {
                 }
                 
                 setQuickAmount(parsed.price);
-                addItem(false, itemName, 'Weight/Price', true); // Skip popup
+                addItem(false, itemName, 'Weight/Price', true, {
+                    priceFromBarcode: true,
+                    entryMode: 'manual'
+                }); // Skip popup
             } catch (err) {
                 console.error(err);
                 setQuickAmount(parsed.price);
-                addItem(false, 'Scanned Item', 'Other', true);
+                addItem(false, 'Scanned Item', 'Other', true, {
+                    priceFromBarcode: true,
+                    entryMode: 'manual'
+                });
             }
             return;
         }
@@ -75,7 +81,10 @@ async function processBarcode(barcode) {
             
             if (foundItem) {
                 setQuickAmount(foundItem.price);
-                addItem(true, foundItem.name, foundItem.category, true);
+                addItem(true, foundItem.name, foundItem.category, true, {
+                    sku: foundItem.sku,
+                    entryMode: 'inventory'
+                });
             } else {
                 emit('scanner:not_found', { barcode });
             }

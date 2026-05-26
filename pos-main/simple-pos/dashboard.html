@@ -79,6 +79,9 @@
             <button type="button" data-page="sync.html" data-requires-role="admin" class="sidebar-link text-left w-full bg-transparent border-0 hidden">
                 <span class="material-symbols-outlined text-emerald-300">sync_alt</span> Data Sync
             </button>
+            <button type="button" data-page="settings.html" data-requires-role="admin" class="sidebar-link text-left w-full bg-transparent border-0 hidden">
+                <span class="material-symbols-outlined text-slate-300">settings</span> Settings
+            </button>
 
             <p class="px-6 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 mt-4">CRM & Marketing</p>
             <button type="button" data-page="customers.html" class="sidebar-link text-left w-full bg-transparent border-0">
@@ -106,9 +109,9 @@
         <iframe id="content-frame" src="about:blank"></iframe>
     </main>
 
-    <script src="database.js?v=20260525d"></script>
+    <script src="database.js?v=20260526b"></script>
     <script>
-        const DASHBOARD_PAGE_VERSION = '20260525d';
+        const DASHBOARD_PAGE_VERSION = '20260526b';
         const DASHBOARD_DEFAULT_PAGE = 'analytics.html';
 
         function hasValidSession() {

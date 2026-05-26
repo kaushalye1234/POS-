@@ -4,8 +4,16 @@ const router = express.Router();
 const Sale = require('../models/Sale');
 const Item = require('../models/Item');
 const InventoryTransaction = require('../models/InventoryTransaction');
+const PosSettings = require('../models/PosSettings');
 const config = require('../config');
 const { getBusinessTimestampParts } = require('../utils/businessTime');
+const { authenticateToken, authorize } = require('../middleware/auth');  // FIXED: Add auth
+
+function createBadRequestError(message) {
+    const error = new Error(message);
+    error.status = 400;
+    return error;
+}
 
 // ============================================
 // SEC-005: Input validation helper
@@ -15,14 +23,6 @@ function validateSaleInput(body) {
 
     if (!body.employeeId || typeof body.employeeId !== 'string') {
         errors.push('employeeId is required and must be a string.');
-    }
-
-    if (typeof body.totalAmount !== 'number' || body.totalAmount < 0) {
-        errors.push('totalAmount must be a non-negative number.');
-    }
-
-    if (typeof body.amountReceived !== 'number' || body.amountReceived < 0) {
-        errors.push('amountReceived must be a non-negative number.');
     }
 
     if (!Array.isArray(body.items) || body.items.length === 0) {
@@ -45,13 +45,106 @@ function validateSaleInput(body) {
         });
     }
 
+    // FIXED: Don't validate client-provided totals - we'll compute them server-side
+    if (typeof body.amountReceived !== 'number' || body.amountReceived < 0) {
+        errors.push('amountReceived must be a non-negative number.');
+    }
+
     return errors;
+}
+
+// FIXED: New helper to compute correct totals from database item prices
+async function computeSaleTotals(itemsFromClient, discountPercentage = 0, options = {}) {
+    if (!Array.isArray(itemsFromClient) || itemsFromClient.length === 0) {
+        throw new Error('items must be non-empty array');
+    }
+
+    const allowManualSales = options.allowManualSales === true;
+
+    // Look up current prices from database for each item
+    const itemsWithDbPrices = await Promise.all(
+        itemsFromClient.map(async (clientItem) => {
+            if (!clientItem.sku) {
+                if (!allowManualSales) {
+                    const missingName = clientItem.itemName || clientItem.name || 'Manual item';
+                    throw createBadRequestError(`Manual item "${missingName}" is not allowed while Inventory Only mode is active.`);
+                }
+
+                const quantity = parseInt(clientItem.quantity);
+                if (quantity < 1 || !isFinite(quantity)) {
+                    throw createBadRequestError('Invalid quantity for manual sale item');
+                }
+
+                const unitPrice = Number(clientItem.unitPrice ?? clientItem.price);
+                if (!isFinite(unitPrice) || unitPrice < 0) {
+                    throw createBadRequestError('Manual sale items require a valid non-negative price');
+                }
+
+                const itemName = String(clientItem.itemName || clientItem.name || '').trim();
+                if (!itemName) {
+                    throw createBadRequestError('Manual sale items require an item name');
+                }
+
+                const lineTotal = quantity * unitPrice;
+
+                return {
+                    sku: null,
+                    itemName,
+                    quantity,
+                    unitPrice,
+                    lineTotal,
+                    categoryFromDb: String(clientItem.category || '').trim() || null,
+                    entryMode: 'manual'
+                };
+            }
+
+            const dbItem = await Item.findOne({ sku: clientItem.sku });
+            if (!dbItem) {
+                throw createBadRequestError(`Item not found: ${clientItem.sku}`);
+            }
+
+            const quantity = parseInt(clientItem.quantity);
+            if (quantity < 1 || !isFinite(quantity)) {
+                throw createBadRequestError(`Invalid quantity for ${clientItem.sku}`);
+            }
+
+            // Use database price, not client price!
+            const unitPrice = dbItem.price;
+            const lineTotal = quantity * unitPrice;
+
+            return {
+                sku: clientItem.sku,
+                itemName: clientItem.itemName || clientItem.name || dbItem.name,
+                quantity,
+                unitPrice,
+                lineTotal,
+                categoryFromDb: dbItem.category,
+                entryMode: 'inventory'
+            };
+        })
+    );
+
+    // Calculate totals from actual database prices
+    const subtotal = itemsWithDbPrices.reduce((sum, item) => sum + item.lineTotal, 0);
+
+    // Validate and apply discount
+    const discountPct = Math.min(100, Math.max(0, discountPercentage || 0));
+    const discountAmount = subtotal * (discountPct / 100);
+    const totalAmount = subtotal - discountAmount;
+
+    return {
+        items: itemsWithDbPrices,
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        discountPercentage: discountPct,
+        discountAmount: parseFloat(discountAmount.toFixed(2)),
+        totalAmount: parseFloat(totalAmount.toFixed(2))
+    };
 }
 
 // ============================================
 // GET /api/sales — with pagination (BACK-004 fix)
 // ============================================
-router.get('/', async (req, res, next) => {
+router.get('/', authenticateToken, async (req, res, next) => {
     try {
         const { date, page = 1, limit = 50 } = req.query;
         const filter = date ? { saleDate: date } : {};
@@ -83,7 +176,7 @@ router.get('/', async (req, res, next) => {
 // ============================================
 // POST /api/sales — Create sale with validation + atomic stock
 // ============================================
-router.post('/', async (req, res, next) => {
+router.post('/', authenticateToken, async (req, res, next) => {
     let session = null;
     let useSession = false;
 
@@ -96,6 +189,36 @@ router.post('/', async (req, res, next) => {
                 details: validationErrors
             });
         }
+
+        const posSettings = await PosSettings.getCurrent();
+        const allowManualSales = posSettings.saleEntryMode === 'manual_allowed';
+
+        // FIXED: Compute totals server-side from database prices
+        let totals;
+        try {
+            totals = await computeSaleTotals(
+                req.body.items,
+                req.body.discountPercentage || 0,
+                { allowManualSales }
+            );
+        } catch (error) {
+            if (error?.status === 400) {
+                return res.status(400).json({ error: error.message });
+            }
+            throw error;
+        }
+
+        // Validate amount received
+        const amountReceivedNum = parseFloat(req.body.amountReceived);
+        if (!isFinite(amountReceivedNum) || amountReceivedNum < totals.totalAmount) {
+            return res.status(400).json({
+                error: `Insufficient payment. Total required: ${totals.totalAmount}`,
+                required: totals.totalAmount,
+                received: amountReceivedNum
+            });
+        }
+
+        const changeAmount = parseFloat((amountReceivedNum - totals.totalAmount).toFixed(2));
 
         // BACK-002 FIX: Use cached transaction support flag instead of probing every sale
         const getSupportsTransactions = req.app.get('supportsTransactions');
@@ -115,37 +238,37 @@ router.post('/', async (req, res, next) => {
             }
         }
 
-        // Build a sanitized sale data object (don't trust req.body wholesale)
+        // Build a sanitized sale data object using COMPUTED totals
         const now = new Date();
         const businessNow = getBusinessTimestampParts(now, config.businessTimeZone);
         const saleDate = req.body.saleDate || businessNow.saleDate;
         const saleTime = req.body.saleTime || businessNow.saleTime;
         const saleData = {
             employeeId: String(req.body.employeeId).trim(),
-            items: req.body.items.map(item => {
-                const quantity = Math.max(1, Math.round(Number(item.quantity)));
-                const unitPrice = Math.max(0, Number(item.unitPrice || item.price || 0));
-                const totalPrice = Math.max(0, Number(item.totalPrice || item.lineTotal || item.total || (unitPrice * quantity)));
-
-                return {
-                    itemName: String(item.itemName || item.name || '').trim(),
-                    sku: item.sku ? String(item.sku).trim() : undefined,
-                    category: item.category ? String(item.category).trim() : undefined,
-                    quantity,
-                    unitPrice,
-                    totalPrice,
-                    discountEligible: !!item.discountEligible,
-                    priceFromBarcode: !!item.priceFromBarcode
-                };
+            items: totals.items.map((item, index) => {
+                const sourceItem = req.body.items[index] || {};
+                return ({
+                itemName: item.itemName,
+                sku: item.sku,
+                category: item.categoryFromDb || null,
+                entryMode: item.entryMode || (item.sku ? 'inventory' : 'manual'),
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                totalPrice: item.lineTotal,
+                discountEligible: !!sourceItem.discountEligible,
+                priceFromBarcode: !!sourceItem.priceFromBarcode
+            });
             }),
-            totalAmount: Math.max(0, Number(req.body.totalAmount)),
-            subTotal: Math.max(0, Number(req.body.subTotal || (req.body.totalAmount + (req.body.discount || 0)))),
-            discount: Math.max(0, Number(req.body.discount || 0)),
-            amountReceived: Math.max(0, Number(req.body.amountReceived)),
-            changeAmount: Number(req.body.changeAmount || req.body.changeGiven || 0),
+            subTotal: totals.subtotal,
+            discountPercentage: totals.discountPercentage,
+            discountAmount: totals.discountAmount,
+            discount: totals.discountAmount,
+            totalAmount: totals.totalAmount,
+            amountReceived: amountReceivedNum,
+            changeAmount: changeAmount,
             saleDate,
             saleTime,
-            itemsCount: req.body.items.length,
+            itemsCount: totals.items.length,
             customerId: req.body.customerId || null,
             customerName: req.body.customerName || null,
             paymentMethod: String(req.body.paymentMethod || 'CASH').trim().toUpperCase(),
@@ -248,14 +371,14 @@ router.post('/', async (req, res, next) => {
 // ============================================
 // GET /api/sales/analytics/summary
 // ============================================
-router.get('/analytics/summary', async (req, res, next) => {
+router.get('/analytics/summary', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const summary = await Sale.aggregate([
             {
                 $group: {
                     _id: null,
                     totalRevenue: { $sum: "$totalAmount" },
-                    totalDiscounts: { $sum: "$discount" },
+                    totalDiscounts: { $sum: { $ifNull: ["$discountAmount", "$discount"] } },
                     totalSales: { $sum: 1 },
                     totalItemsSold: { $sum: "$itemsCount" }
                 }
@@ -276,7 +399,7 @@ router.get('/analytics/summary', async (req, res, next) => {
 // ============================================
 // PUT /api/sales/:id — update sale metadata
 // ============================================
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const updates = {};
 
@@ -303,7 +426,7 @@ router.put('/:id', async (req, res, next) => {
         const updatedSale = await Sale.findByIdAndUpdate(
             req.params.id,
             { $set: updates },
-            { new: true, runValidators: true }
+            { returnDocument: 'after', runValidators: true }
         );
 
         if (!updatedSale) {

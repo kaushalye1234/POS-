@@ -21,6 +21,124 @@ function getStorage() {
 
 const storage = getStorage();
 
+function setStatusMessage(element, message, variant = 'info') {
+    if (!element) return;
+
+    element.classList.remove('hidden');
+    if (variant === 'ok') {
+        element.className = 'text-sm font-semibold rounded-lg p-4 bg-emerald-900/50 text-emerald-400 border border-emerald-500/20 block text-center';
+    } else if (variant === 'error') {
+        element.className = 'text-sm font-semibold rounded-lg p-4 bg-red-900/50 text-red-400 border border-red-500/20 block text-center';
+    } else {
+        element.className = 'text-sm font-semibold rounded-lg p-4 bg-slate-800 text-blue-400 block text-center';
+    }
+    element.textContent = message;
+}
+
+function updateSaleModeVisualState(buttons, summaryEl, selectedMode) {
+    const summaryText = selectedMode === 'inventory_only'
+        ? 'Inventory Only'
+        : 'Manual Sales Allowed';
+
+    if (summaryEl) {
+        summaryEl.textContent = summaryText;
+        summaryEl.className = selectedMode === 'inventory_only'
+            ? 'inline-flex items-center rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-amber-300'
+            : 'inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300';
+    }
+
+    buttons.forEach((button) => {
+        const isActive = button.dataset.saleMode === selectedMode;
+        button.classList.toggle('border-primary', isActive);
+        button.classList.toggle('bg-primary/10', isActive);
+        button.classList.toggle('shadow-[0_0_20px_rgba(220,38,38,0.18)]', isActive);
+        button.classList.toggle('border-slate-700', !isActive);
+        button.classList.toggle('bg-slate-950/60', !isActive);
+    });
+}
+
+function setSaleModeButtonsDisabled(buttons, disabled) {
+    buttons.forEach((button) => {
+        button.disabled = disabled;
+        button.classList.toggle('opacity-60', disabled);
+        button.classList.toggle('cursor-not-allowed', disabled);
+    });
+}
+
+function initSaleEntryModeSettings() {
+    const buttons = Array.from(document.querySelectorAll('.sale-mode-btn[data-sale-mode]'));
+    const summaryEl = document.getElementById('saleEntryModeSummary');
+    const statusEl = document.getElementById('saleEntryModeStatus');
+    const getPosSettings = window.POS_API?.getPosSettings;
+    const updatePosSettings = window.POS_API?.updatePosSettings;
+    const currentUser = window.POS_API?.getAuthUser?.();
+    const isAdmin = currentUser?.role === 'admin';
+
+    if (!buttons.length || typeof getPosSettings !== 'function') {
+        return;
+    }
+
+    let currentMode = 'manual_allowed';
+
+    const saveMode = async (nextMode) => {
+        if (!isAdmin || typeof updatePosSettings !== 'function') {
+            return;
+        }
+
+        setSaleModeButtonsDisabled(buttons, true);
+        setStatusMessage(statusEl, 'Saving sale entry mode...', 'info');
+
+        try {
+            const saved = await updatePosSettings({ saleEntryMode: nextMode });
+            currentMode = saved.saleEntryMode || 'manual_allowed';
+            updateSaleModeVisualState(buttons, summaryEl, currentMode);
+            setStatusMessage(statusEl, `Saved: ${currentMode === 'inventory_only' ? 'Inventory Only' : 'Manual Sales Allowed'}`, 'ok');
+            showToast(`Sale Entry Mode: ${currentMode === 'inventory_only' ? 'Inventory Only' : 'Manual Sales Allowed'}`, currentMode === 'inventory_only' ? '#f59e0b' : '#10b981');
+        } catch (error) {
+            setStatusMessage(statusEl, `Could not save mode: ${error?.message || error}`, 'error');
+        } finally {
+            setSaleModeButtonsDisabled(buttons, !isAdmin);
+        }
+    };
+
+    buttons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const nextMode = button.dataset.saleMode;
+            if (!nextMode || nextMode === currentMode || !isAdmin) {
+                return;
+            }
+            void saveMode(nextMode);
+        });
+    });
+
+    void (async () => {
+        setSaleModeButtonsDisabled(buttons, true);
+        setStatusMessage(statusEl, 'Loading sale entry mode...', 'info');
+
+        try {
+            const settings = await getPosSettings({ forceRefresh: true });
+            currentMode = settings?.saleEntryMode || 'manual_allowed';
+            updateSaleModeVisualState(buttons, summaryEl, currentMode);
+
+            if (isAdmin) {
+                setStatusMessage(
+                    statusEl,
+                    currentMode === 'inventory_only'
+                        ? 'Only SKU-backed inventory items can be checked out right now.'
+                        : 'Manual open-price items are currently allowed at checkout.',
+                    'ok'
+                );
+            } else {
+                setStatusMessage(statusEl, 'Only admins can change the sale entry mode.', 'info');
+            }
+        } catch (error) {
+            setStatusMessage(statusEl, `Could not load mode: ${error?.message || error}`, 'error');
+        } finally {
+            setSaleModeButtonsDisabled(buttons, !isAdmin);
+        }
+    })();
+}
+
 function updateClock() {
     const now = new Date();
 
@@ -266,6 +384,8 @@ function showToast(message, color) {
         setTimeout(() => toast.remove(), 300);
     }, 2000);
 }
+
+initSaleEntryModeSettings();
 
 // ===== Barcode Mapping Review UI (Admin) =====
 (function initMappingUI() {

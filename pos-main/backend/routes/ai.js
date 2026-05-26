@@ -114,7 +114,7 @@ router.post('/sales-analysis', async (req, res, next) => {
                 $group: {
                     _id: "$saleDate",
                     totalRevenue: { $sum: "$totalAmount" },
-                    totalDiscount: { $sum: "$discount" },
+                    totalDiscount: { $sum: { $ifNull: ["$discountAmount", "$discount"] } },
                     salesCount: { $sum: 1 },
                     itemsSold: { $sum: "$itemsCount" },
                     avgSaleValue: { $avg: "$totalAmount" }
@@ -205,7 +205,7 @@ router.post('/employee-performance', async (req, res, next) => {
                     salesCount: { $sum: 1 },
                     avgSaleValue: { $avg: "$totalAmount" },
                     totalItems: { $sum: "$itemsCount" },
-                    totalDiscount: { $sum: "$discount" }
+                    totalDiscount: { $sum: { $ifNull: ["$discountAmount", "$discount"] } }
                 }
             },
             { $sort: { totalRevenue: -1 } }
@@ -302,7 +302,7 @@ router.post('/discount-advice', async (req, res) => {
                 $group: {
                     _id: null,
                     totalRevenue: { $sum: '$totalAmount' },
-                    totalDiscount: { $sum: '$discount' },
+                    totalDiscount: { $sum: { $ifNull: ["$discountAmount", "$discount"] } },
                     salesCount: { $sum: 1 },
                     itemsSold: { $sum: '$itemsCount' },
                     averageSaleValue: { $avg: '$totalAmount' }

@@ -40,6 +40,18 @@ describe('Cart Module', () => {
         expect(state.items[0].discountEligible).toBe(true);
     });
 
+    test('addItem preserves inventory metadata when provided', () => {
+        state.currentPrice = '250';
+
+        cart.addItem(true, 'Inventory Item', 'Shirt', true, {
+            sku: 'SKU-001',
+            entryMode: 'inventory'
+        });
+
+        expect(state.items[0].sku).toBe('SKU-001');
+        expect(state.items[0].entryMode).toBe('inventory');
+    });
+
     test('removeItem removes correct item', () => {
         state.currentPrice = '100';
         cart.addItem(false, 'Item A', '', true);

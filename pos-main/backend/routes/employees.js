@@ -9,8 +9,23 @@ router.use(authorize('admin', 'manager'));
 // GET all employees
 router.get('/', async (req, res, next) => {
     try {
-        const employees = await Employee.find().sort({ empId: 1 });
-        res.json(employees);
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+        const skip = (page - 1) * limit;
+
+        const [employees, total] = await Promise.all([
+            Employee.find()
+                .sort({ empId: 1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Employee.countDocuments()
+        ]);
+
+        res.json({
+            data: employees,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+        });
     } catch (err) {
         next(err);
     }

@@ -56,19 +56,44 @@ function getReceiptTimestamp(sale) {
     return new Date();
 }
 
+function formatReceiptDateValue(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '-';
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+function formatReceiptTimeValue(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '-';
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+}
+
+function buildReceiptItemLine(item) {
+    const quantity = Number(item.quantity || 0);
+    const amount = Number(item.total ?? item.totalPrice ?? ((item.price || 0) * quantity));
+    const itemName = item.name || item.itemName || 'Item';
+
+    return `
+        <div class="receipt-item-grid">
+            <span class="receipt-item-name">${escapeHtml(itemName)}</span>
+            <span class="receipt-item-qty">${escapeHtml(String(quantity))}</span>
+            <span class="receipt-item-amount">${formatReceiptAmount(amount)}</span>
+        </div>
+    `;
+}
+
 export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLabel, savedSale = null) {
     const timestamp = getReceiptTimestamp(savedSale);
-    const dateStr = timestamp.toLocaleDateString('en-LK');
-    const timeStr = timestamp.toLocaleTimeString('en-LK');
+    const dateStr = formatReceiptDateValue(timestamp);
+    const timeStr = formatReceiptTimeValue(timestamp);
     const receiptId = getSaleReceiptId(savedSale) || 'PENDING';
     const settlement = getSettlementSummary(totals.change);
 
-    const itemsHtml = items.map((item) => `
-        <div class="receipt-item-row">
-            <span class="receipt-item-name">${escapeHtml(item.name)} x${escapeHtml(String(item.quantity))}</span>
-            <span class="receipt-item-amount">${formatReceiptAmount(item.total)}</span>
-        </div>
-    `).join('');
+    const itemsHtml = items.map(buildReceiptItemLine).join('');
 
     const discountRow = totals.discountAmount > 0
         ? `<div class="receipt-summary-row"><span>${escapeHtml(receiptDiscountLabel || 'Discount')}:</span><span>-${formatReceiptAmount(totals.discountAmount)}</span></div>`
@@ -96,8 +121,9 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
                 }
                 .paper {
                     background: white;
+                    box-sizing: border-box;
+                    width: 300px;
                     padding: 20px;
-                    max-width: 300px;
                     margin: 0 auto;
                     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
                 }
@@ -154,7 +180,6 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
                 }
                 .receipt-meta-row,
                 .receipt-summary-row,
-                .receipt-item-row,
                 .receipt-total-row {
                     display: flex;
                     justify-content: space-between;
@@ -162,28 +187,37 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
                 }
                 .receipt-meta-row span:last-child,
                 .receipt-summary-row span:last-child,
-                .receipt-item-row span:last-child,
                 .receipt-total-row span:last-child {
                     text-align: right;
                 }
                 .receipt-meta-row {
                     margin-bottom: 2px;
                 }
+                .receipt-items-header,
+                .receipt-item-grid {
+                    display: grid;
+                    grid-template-columns: minmax(0, 1fr) 42px 90px;
+                    gap: 8px;
+                    align-items: flex-start;
+                }
                 .receipt-items-header {
                     margin: 8px 0 4px;
                     font-weight: 700;
                 }
-                .receipt-item-row {
-                    align-items: flex-start;
+                .receipt-item-grid {
                     margin-bottom: 2px;
                 }
                 .receipt-item-name {
-                    flex: 1;
                     padding-right: 10px;
                     word-break: break-word;
                 }
+                .receipt-item-qty,
+                .receipt-items-header span:nth-child(2) {
+                    text-align: center;
+                }
                 .receipt-item-amount {
-                    min-width: 90px;
+                    text-align: right;
+                    white-space: nowrap;
                 }
                 .receipt-total-row {
                     margin-top: 4px;
@@ -230,8 +264,9 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
                         <span>Receipt: ${escapeHtml(receiptId)}</span>
                     </div>
                     <div class="receipt-separator">${RECEIPT_DASH_LINE}</div>
-                    <div class="receipt-item-row receipt-items-header">
+                    <div class="receipt-items-header">
                         <span>ITEM</span>
+                        <span>QTY</span>
                         <span>TOTAL</span>
                     </div>
                     ${itemsHtml}
@@ -244,7 +279,6 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
                     <div class="receipt-separator">${RECEIPT_EQUAL_LINE}</div>
                     <div class="receipt-footer">THANK YOU!</div>
                     <div class="receipt-footer">COME AGAIN!</div>
-                    <div class="receipt-footer">COME WITHIN 7 DAYS</div>
                 </div>
             </div>
         </body>

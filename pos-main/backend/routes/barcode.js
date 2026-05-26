@@ -5,6 +5,7 @@ const bwipjs = require('bwip-js');
 const router = express.Router();
 const Item = require('../models/Item');
 const { parseBarcode } = require('../utils/barcodeParser');
+const { authenticateToken, authorize } = require('../middleware/auth');
 
 function computeEan13CheckDigit(first12) {
     const digits = String(first12).replace(/\D/g, '').slice(0, 12).split('').map(d => parseInt(d, 10));
@@ -80,9 +81,9 @@ async function generateUniqueEan13(prefix = '2', maxAttempts = 30) {
     throw new Error('Failed to generate a unique barcode');
 }
 
-// POST /api/barcode/parse
+// POST /api/barcode/parse - FIXED: Add auth
 // body: { code: '<scanned string>' }
-router.post('/parse', async (req, res, next) => {
+router.post('/parse', authenticateToken, async (req, res, next) => {
     try {
         const { code } = req.body || {};
         if (!code) return res.status(400).json({ error: 'Missing code' });
@@ -106,11 +107,11 @@ router.post('/parse', async (req, res, next) => {
     }
 });
 
-// POST /api/barcode/generate
+// POST /api/barcode/generate - FIXED: Add auth
 // body:
 //  - { format?: 'ean13', prefix?: '2' }
 //  - { format: 'structured', sku: 'ITM-1', category?: '...', price?: 0, storedAt?: 'YYYY-MM-DD'|'ISO' }
-router.post('/generate', async (req, res, next) => {
+router.post('/generate', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const { format, prefix, sku, category, price, storedAt } = req.body || {};
         const fmt = String(format || 'ean13');
@@ -131,9 +132,9 @@ router.post('/generate', async (req, res, next) => {
     }
 });
 
-// POST /api/barcode/assign
+// POST /api/barcode/assign - FIXED: Add admin-only auth (modifies items)
 // body: { sku: 'ITM-1', format?: 'ean13', prefix?: '2' }
-router.post('/assign', async (req, res, next) => {
+router.post('/assign', authenticateToken, authorize('admin'), async (req, res, next) => {
     try {
         const { sku, format, prefix } = req.body || {};
         if (!sku) return res.status(400).json({ error: 'Missing sku' });
@@ -179,9 +180,9 @@ router.post('/assign', async (req, res, next) => {
     }
 });
 
-// POST /api/barcode/render
+// POST /api/barcode/render - FIXED: Add auth
 // body: { text: '123...', symbology?: 'ean13'|'code128', scale?: number, height?: number, includetext?: boolean }
-router.post('/render', async (req, res, next) => {
+router.post('/render', authenticateToken, async (req, res, next) => {
     try {
         const { text, symbology, scale, height, includetext } = req.body || {};
         const t = String(text || '').trim();

@@ -220,48 +220,160 @@ function renderCustomers(customers) {
         return;
     }
 
-    grid.innerHTML = customers.map(c => {
+    grid.textContent = '';  // Clear safely
+    
+    customers.forEach(c => {
         const tier = getTier(c.loyaltyPoints);
         const { progress, nextTier, pointsToNextTier } = getTierProgress(c.loyaltyPoints);
         const initials = (c.name || '?').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-        const photoHtml = c.photo
-            ? `<img src="${c.photo}" class="customer-avatar" alt="${c.name}" />`
-            : `<div class="customer-avatar-placeholder"><span class="text-primary font-bold text-lg">${initials}</span></div>`;
-        const customerId = String(c.id || '').replace(/'/g, "\\'");
+        const customerId = String(c.id || '');
 
-        return `
-        <div class="customer-card" onclick="openDetail('${customerId}')">
-            <div class="flex items-center gap-3 mb-3">
-                ${photoHtml}
-                <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 mb-0.5">
-                        <p class="font-bold text-white text-sm truncate">${escHtml(c.name)}</p>
-                        <span class="tier-badge ${tier.class}">${tier.name}</span>
-                    </div>
-                    <p class="text-xs text-slate-400 truncate">${escHtml(c.phone || '—')}</p>
-                </div>
-            </div>
-            <div class="bg-slate-900/50 rounded-lg p-3 mb-3 border border-slate-700/30">
-                <div class="flex justify-between items-center mb-1">
-                    <span class="text-xs text-slate-400 font-semibold">Loyalty Points</span>
-                    <span class="text-sm font-black" style="color:${tier.color}">${(c.loyaltyPoints || 0).toLocaleString()} pts</span>
-                </div>
-                <div class="loyalty-bar">
-                    <div class="loyalty-fill" style="width: ${progress}%"></div>
-                </div>
-                ${nextTier ? `<p class="text-right text-[10px] text-slate-500 mt-0.5">${pointsToNextTier} pts to ${nextTier.name}</p>` : '<p class="text-right text-[10px] text-purple-400 mt-0.5">Top loyalty tier reached</p>'}
-            </div>
-            <div class="flex items-end justify-between gap-3 text-xs text-slate-500">
-                <div class="min-w-0">
-                    <p class="truncate">${c.favoriteItem ? `Favorite: ${escHtml(c.favoriteItem)}` : 'No purchase history yet'}</p>
-                    <p>${c.lastVisit ? `Last visit ${formatDateDisplay(c.lastVisit)}` : 'New customer'}</p>
-                </div>
-                <button type="button" onclick="event.stopPropagation(); openDetail('${customerId}')" class="shrink-0 bg-slate-800 hover:bg-slate-700 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors">
-                    Go to Profile
-                </button>
-            </div>
-        </div>`;
-    }).join('');
+        // Create main card element
+        const card = document.createElement('div');
+        card.className = 'customer-card';
+        card.addEventListener('click', () => openDetail(customerId));
+
+        // Create photo element with URL validation
+        const photoDiv = document.createElement('div');
+        photoDiv.className = 'flex items-center gap-3 mb-3';
+
+        if (c.photo) {
+            const img = document.createElement('img');
+            img.className = 'customer-avatar';
+            img.alt = String(c.name || 'Customer');
+            
+            // Validate photo URL
+            try {
+                const photoUrl = new URL(c.photo, window.location.origin);
+                // Only allow https, same origin, or data URLs
+                if (photoUrl.protocol === 'https:' || photoUrl.origin === window.location.origin || c.photo.startsWith('data:')) {
+                    img.src = photoUrl.href;
+                } else {
+                    img.style.display = 'none';  // Skip untrusted URL
+                }
+            } catch (e) {
+                img.style.display = 'none';  // Invalid URL
+            }
+            photoDiv.appendChild(img);
+        } else {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'customer-avatar-placeholder';
+            const initialsSpan = document.createElement('span');
+            initialsSpan.className = 'text-primary font-bold text-lg';
+            initialsSpan.textContent = initials;  // Safe: text only
+            placeholder.appendChild(initialsSpan);
+            photoDiv.appendChild(placeholder);
+        }
+
+        // Create info section
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'flex-1 min-w-0';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'flex items-center gap-2 mb-0.5';
+
+        const nameP = document.createElement('p');
+        nameP.className = 'font-bold text-white text-sm truncate';
+        nameP.textContent = c.name || 'Unknown';  // Safe: text only
+
+        const tierBadge = document.createElement('span');
+        tierBadge.className = `tier-badge ${tier.class}`;
+        tierBadge.textContent = tier.name;
+
+        headerDiv.appendChild(nameP);
+        headerDiv.appendChild(tierBadge);
+
+        const phoneP = document.createElement('p');
+        phoneP.className = 'text-xs text-slate-400 truncate';
+        phoneP.textContent = c.phone || '—';  // Safe: text only
+
+        infoDiv.appendChild(headerDiv);
+        infoDiv.appendChild(phoneP);
+        photoDiv.appendChild(infoDiv);
+
+        // Create loyalty points section
+        const loyaltyDiv = document.createElement('div');
+        loyaltyDiv.className = 'bg-slate-900/50 rounded-lg p-3 mb-3 border border-slate-700/30';
+
+        const loyaltyHeaderDiv = document.createElement('div');
+        loyaltyHeaderDiv.className = 'flex justify-between items-center mb-1';
+
+        const loyaltyLabel = document.createElement('span');
+        loyaltyLabel.className = 'text-xs text-slate-400 font-semibold';
+        loyaltyLabel.textContent = 'Loyalty Points';
+
+        const loyaltyPoints = document.createElement('span');
+        loyaltyPoints.className = 'text-sm font-black';
+        loyaltyPoints.style.color = tier.color;
+        loyaltyPoints.textContent = `${(c.loyaltyPoints || 0).toLocaleString()} pts`;
+
+        loyaltyHeaderDiv.appendChild(loyaltyLabel);
+        loyaltyHeaderDiv.appendChild(loyaltyPoints);
+
+        const loyaltyBar = document.createElement('div');
+        loyaltyBar.className = 'loyalty-bar';
+        const loyaltyFill = document.createElement('div');
+        loyaltyFill.className = 'loyalty-fill';
+        loyaltyFill.style.width = `${progress}%`;
+        loyaltyBar.appendChild(loyaltyFill);
+
+        const loyaltyNote = document.createElement('p');
+        loyaltyNote.className = 'text-right text-[10px] mt-0.5';
+        if (nextTier) {
+            loyaltyNote.className += ' text-slate-500';
+            loyaltyNote.textContent = `${pointsToNextTier} pts to ${nextTier.name}`;
+        } else {
+            loyaltyNote.className += ' text-purple-400';
+            loyaltyNote.textContent = 'Top loyalty tier reached';
+        }
+
+        loyaltyDiv.appendChild(loyaltyHeaderDiv);
+        loyaltyDiv.appendChild(loyaltyBar);
+        loyaltyDiv.appendChild(loyaltyNote);
+
+        // Create footer section
+        const footerDiv = document.createElement('div');
+        footerDiv.className = 'flex items-end justify-between gap-3 text-xs text-slate-500';
+
+        const activityDiv = document.createElement('div');
+        activityDiv.className = 'min-w-0';
+
+        const favoriteP = document.createElement('p');
+        favoriteP.className = 'truncate';
+        if (c.favoriteItem) {
+            favoriteP.textContent = `Favorite: ${c.favoriteItem}`;
+        } else {
+            favoriteP.textContent = 'No purchase history yet';
+        }
+
+        const lastVisitP = document.createElement('p');
+        if (c.lastVisit) {
+            lastVisitP.textContent = `Last visit ${formatDateDisplay(c.lastVisit)}`;
+        } else {
+            lastVisitP.textContent = 'New customer';
+        }
+
+        activityDiv.appendChild(favoriteP);
+        activityDiv.appendChild(lastVisitP);
+
+        const profileBtn = document.createElement('button');
+        profileBtn.type = 'button';
+        profileBtn.className = 'shrink-0 bg-slate-800 hover:bg-slate-700 text-white font-semibold px-3 py-1.5 rounded-lg transition-colors';
+        profileBtn.textContent = 'Go to Profile';
+        profileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openDetail(customerId);
+        });
+
+        footerDiv.appendChild(activityDiv);
+        footerDiv.appendChild(profileBtn);
+
+        // Assemble all parts
+        card.appendChild(photoDiv);
+        card.appendChild(loyaltyDiv);
+        card.appendChild(footerDiv);
+        grid.appendChild(card);
+    });
 }
 
 // ===== Photo Handling =====

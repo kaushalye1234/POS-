@@ -29,6 +29,10 @@ describe('Checkout receipt retry flow', () => {
         window.alert = jest.fn();
         window.confirm = jest.fn(() => true);
         window.POS_API = {
+            getPosSettings: jest.fn().mockResolvedValue({
+                saleEntryMode: 'manual_allowed',
+                allowManualSales: true
+            }),
             saveSale: jest.fn().mockResolvedValue({
                 _id: 'abc123def456',
                 receiptId: 'SALE-DEF456',
@@ -71,5 +75,18 @@ describe('Checkout receipt retry flow', () => {
         expect(checkout.getPendingPrintReceipt()).toBeNull();
         expect(state.items).toHaveLength(0);
         expect(window.alert).not.toHaveBeenCalled();
+    });
+
+    test('blocks manual checkout when inventory-only mode is active', async () => {
+        window.POS_API.getPosSettings.mockResolvedValue({
+            saleEntryMode: 'inventory_only',
+            allowManualSales: false
+        });
+
+        const result = await checkout.printReceiptAndSave('1', '', 'Walk-in Customer', '200');
+
+        expect(result).toBe(false);
+        expect(window.POS_API.saveSale).not.toHaveBeenCalled();
+        expect(window.alert).toHaveBeenCalledWith(expect.stringContaining('Inventory Only mode is active'));
     });
 });

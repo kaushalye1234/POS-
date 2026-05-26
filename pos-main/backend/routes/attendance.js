@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const Attendance = require('../models/Attendance');
+const { authenticateToken, authorize } = require('../middleware/auth');
 
-router.get('/', async (req, res, next) => {
+// Helper to escape regex special characters
+function escapeRegexChars(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+router.get('/', authenticateToken, async (req, res, next) => {
     try {
         const filter = {};
 
@@ -13,22 +19,35 @@ router.get('/', async (req, res, next) => {
         if (req.query.date) {
             filter.date = String(req.query.date).trim();
         } else if (req.query.month) {
-            filter.date = new RegExp(`^${String(req.query.month).trim()}-`);
+            // FIXED: Validate and escape regex input to prevent ReDoS
+            const monthStr = String(req.query.month).trim();
+            if (!/^\d{4}-\d{2}$/.test(monthStr)) {
+                return res.status(400).json({ error: 'Invalid month format. Use YYYY-MM' });
+            }
+            filter.date = new RegExp(`^${escapeRegexChars(monthStr)}-`);
         }
 
-        const records = await Attendance.find(filter).sort({ date: -1, employeeId: 1 });
+        const records = await Attendance.find(filter)
+            .sort({ date: -1, employeeId: 1 })
+            .limit(1000);  // Add safety limit
+        
         res.json(records);
     } catch (err) {
         next(err);
     }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const { employeeId, employeeName, date, status, note, markedBy } = req.body;
 
         if (!employeeId || !date) {
             return res.status(400).json({ error: 'Missing required fields: employeeId, date' });
+        }
+
+        // Validate status
+        if (status && !['present', 'absent', 'late', 'leave', 'half-day'].includes(status)) {
+            return res.status(400).json({ error: 'Invalid status value' });
         }
 
         const payload = {
@@ -59,9 +78,14 @@ router.post('/', async (req, res, next) => {
     }
 });
 
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const { id, ...updateData } = req.body;
+
+        // Validate status if provided
+        if (updateData.status && !['present', 'absent', 'late', 'leave', 'half-day'].includes(updateData.status)) {
+            return res.status(400).json({ error: 'Invalid status value' });
+        }
 
         const updated = await Attendance.findOneAndUpdate(
             { id: req.params.id },

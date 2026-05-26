@@ -16,10 +16,12 @@ const API_HEALTHCHECK_PATH = '/api/health';
 const API_PROBE_TIMEOUT_MS = 2500;
 const SALES_SYNC_EVENT_KEY = 'pos_last_sale_event';
 const SALES_SYNC_CHANNEL = 'fashion-shaa-pos-sync';
+const POS_SETTINGS_CACHE_KEY = 'pos_settings_cache';
 const WINDOW_NAME_STORAGE_PREFIX = '__fashion_shaa_pos_storage__=';
 const BUSINESS_TIME_ZONE = 'Asia/Colombo';
 let resolvedApiOriginPromise = null;
 let resolvedStorageBackend = null;
+let cachedPosSettings = null;
 const inMemoryStorage = Object.create(null);
 
 function getDateTimeFormatterParts(formatter, date = new Date()) {
@@ -708,6 +710,66 @@ async function fetchAPI(endpoint, options = {}) {
 
 if (typeof window !== 'undefined') {
     Object.assign(window.POS_API, { fetchAPI });
+}
+
+function readCachedPosSettings() {
+    if (cachedPosSettings) {
+        return cachedPosSettings;
+    }
+
+    try {
+        const raw = safeStorage.getItem(POS_SETTINGS_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return null;
+        cachedPosSettings = parsed;
+        return cachedPosSettings;
+    } catch {
+        return null;
+    }
+}
+
+function getCachedPosSettings() {
+    return readCachedPosSettings() || {
+        saleEntryMode: 'manual_allowed',
+        allowManualSales: true
+    };
+}
+
+function writeCachedPosSettings(settings) {
+    cachedPosSettings = settings && typeof settings === 'object'
+        ? { ...settings }
+        : null;
+
+    if (!cachedPosSettings) {
+        safeStorage.removeItem(POS_SETTINGS_CACHE_KEY);
+        return null;
+    }
+
+    safeStorage.setItem(POS_SETTINGS_CACHE_KEY, JSON.stringify(cachedPosSettings));
+    return cachedPosSettings;
+}
+
+async function getPosSettings(options = {}) {
+    const forceRefresh = options?.forceRefresh === true;
+
+    if (!forceRefresh) {
+        const cached = readCachedPosSettings();
+        if (cached) {
+            return cached;
+        }
+    }
+
+    const settings = await fetchAPI('/settings/pos');
+    return writeCachedPosSettings(settings);
+}
+
+async function updatePosSettings(updates) {
+    const settings = await fetchAPI('/settings/pos', {
+        method: 'PUT',
+        body: updates
+    });
+    return writeCachedPosSettings(settings);
 }
 
 let db = true; // Legacy compatibility flag for older POS checks
@@ -1454,6 +1516,9 @@ if (typeof window !== 'undefined') {
         fetchAPI,
         initDatabase,
         whenDatabaseReady,
+        getCachedPosSettings,
+        getPosSettings,
+        updatePosSettings,
         saveSale,
         getAllSales,
         getInventoryItem,
@@ -1466,6 +1531,9 @@ if (typeof window !== 'undefined') {
         db,
         fetchAPI,
         initDatabase,
+        getCachedPosSettings,
+        getPosSettings,
+        updatePosSettings,
         saveSale,
         getAllSales,
         getInventoryItem,

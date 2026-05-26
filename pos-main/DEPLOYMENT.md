@@ -1,69 +1,114 @@
 # Fashion Shaa POS Deployment Guide
 
-This project now targets a hosted backend on Render plus Electron desktop clients that connect to that API over HTTPS.
+This project supports two deployment styles:
 
-## 1. Backend Environment
-Create `backend/.env` from `backend/.env.example` for local development, or add the same values in Render:
+1. **Developer / source checkout**
+2. **Client Windows installer with local + online Mongo sync**
+
+## 1. Client Windows Installer Flow
+
+### Build the installer
+```powershell
+cd "D:\OneDrive\OneDrive - Sri Lanka Institute of Information Technology\Desktop\pos-main - Copy\pos-main\simple-pos"
+npm install
+npm run build-css
+npm run dist
+```
+
+The installer artifacts are created in:
+- [D:\OneDrive\OneDrive - Sri Lanka Institute of Information Technology\Desktop\pos-main - Copy\pos-main\simple-pos\dist](</D:/OneDrive/OneDrive - Sri Lanka Institute of Information Technology/Desktop/pos-main - Copy/pos-main/simple-pos/dist>)
+
+### Install on the client PC
+1. Run the generated NSIS installer.
+2. In the installed folder, run:
+   - `Setup-ClientPC.bat`
+3. Provide these values when prompted:
+   - MongoDB Atlas URI
+   - Gemini API key
+   - JWT secret
+   - admin username
+   - admin password
+
+### What the setup script does
+- installs MongoDB Community Server with `winget` if needed
+- starts and verifies the `MongoDB` Windows service
+- writes runtime backend config to:
+  - `%ProgramData%\FashionShaaPOS\backend\.env`
+- starts the packaged backend with the desktop EXE in `--backend` mode
+- verifies:
+  - `http://127.0.0.1:5000/api/health`
+- seeds or resets the admin account
+- recreates the desktop shortcut
+
+### Client runtime defaults
+The client setup writes these backend defaults:
 
 ```env
 PORT=5000
 NODE_ENV=production
-MONGO_URI=mongodb+srv://<user>:<password>@<cluster>/<db>
-JWT_SECRET=replace_with_a_long_random_secret
+MONGO_CONNECTION_MODE=auto
+MONGO_LOCAL_URI=mongodb://127.0.0.1:27017/fashion_shaa_pos
+MONGO_REMOTE_URI=<atlas uri>
+MONGO_URI=
+MONGO_SYNC_ENABLED=true
+MONGO_SYNC_ON_STARTUP=true
+MONGO_SYNC_INTERVAL_MS=60000
+BUSINESS_TIME_ZONE=Asia/Colombo
 JWT_EXPIRY=12h
-CORS_ORIGIN=https://your-admin-site.example.com
 ```
 
-Notes:
-- `MONGO_URI` is the primary database variable. `MONGODB_URI` is also accepted for compatibility.
-- `JWT_EXPIRY` is the primary token expiry variable. `JWT_EXPIRES_IN` is also accepted.
-- `CORS_ORIGIN` is optional and accepts a comma-separated list of browser origins. Electron/file origins are allowed automatically.
+### Client verification checklist
+- Desktop app opens from the shortcut
+- `/api/health` returns `200`
+- login works with the seeded admin account
+- a sale can be completed
+- analytics update
+- note/annotation save works from dashboard pages
+- Data Sync shows local and remote configured
 
-## 2. Render Deployment
-The repo includes [`render.yaml`](D:/OneDrive/OneDrive%20-%20Sri%20Lanka%20Institute%20of%20Information%20Technology/Desktop/pos-main%20-%20Copy/pos-main/render.yaml) for a Render Blueprint deployment.
+## 2. Developer / Source Checkout
 
-Render service settings:
-- Root directory: `backend`
-- Build command: `npm install`
-- Start command: `npm start`
-- Health check path: `/api/health`
+### Backend
+```powershell
+cd "D:\OneDrive\OneDrive - Sri Lanka Institute of Information Technology\Desktop\pos-main - Copy\pos-main\backend"
+npm install
+copy .env.example .env
+npm start
+```
 
-Important behavior:
-- The API connects to MongoDB before it starts listening.
-- If MongoDB is missing or unreachable, startup exits non-zero.
-- `/api/health` returns `503` until MongoDB is ready.
-
-## 3. Electron Client Setup
-In the desktop app Settings page, set the API origin to one of:
-
-- Local development: `http://localhost:5000`
-- Render-hosted backend: `https://<your-service>.onrender.com`
-
-Rules:
-- `http://` is only accepted for `localhost` / `127.0.0.1`
-- Hosted backends must use `https://`
-
-The Settings “Test” button now checks `/api/health`, so it verifies connectivity without requiring a logged-in session.
-
-## 4. Local Development
-Backend:
-
-```bash
-cd backend
+### Electron app
+```powershell
+cd "D:\OneDrive\OneDrive - Sri Lanka Institute of Information Technology\Desktop\pos-main - Copy\pos-main\simple-pos"
 npm install
 npm start
 ```
 
-Electron app:
+For source checkouts, the existing launcher still works:
+- [D:\OneDrive\OneDrive - Sri Lanka Institute of Information Technology\Desktop\pos-main - Copy\pos-main\simple-pos\FashionShaa-POS.bat](</D:/OneDrive/OneDrive - Sri Lanka Institute of Information Technology/Desktop/pos-main - Copy/pos-main/simple-pos/FashionShaa-POS.bat>)
 
-```bash
-cd simple-pos
-npm install
-npm start
-```
+## 3. Runtime Configuration Behavior
 
-## 5. Verification Checklist
-- Backend starts with `npm start`
-- `/api/health` returns `200` when MongoDB is connected
-- Electron Settings accepts the Render HTTPS origin
-- Login, admin override, and normal authenticated API flows still work
+### Backend config resolution
+Backend runtime config now prefers the writable client machine path first:
+
+1. `%ProgramData%\FashionShaaPOS\backend\.env`
+2. local repo `backend\.env` for source/development
+
+### Backend logs
+Packaged backend logs are written to:
+- `%ProgramData%\FashionShaaPOS\logs`
+
+### Desktop EXE modes
+The packaged EXE supports:
+- normal launch: opens the POS window
+- `--backend`: runs the hidden backend service only
+- `--bootstrap-admin`: seeds or resets the admin account
+
+## 4. Hosted / Remote Backend Notes
+The app still supports hosted or remote APIs through the Settings page, but this client deployment path is optimized for:
+- local MongoDB
+- Atlas MongoDB
+- `auto` connection mode
+- enabled sync
+
+The Settings page can still test or override API origin if needed.

@@ -48,8 +48,9 @@
 
         .receipt-paper {
             background: white;
+            box-sizing: border-box;
+            width: 300px;
             padding: 20px;
-            max-width: 300px;
             margin: 0 auto;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             font-family: 'Courier New', monospace;
@@ -98,7 +99,6 @@
             margin: 10px 0;
         }
         .receipt-meta-row,
-        .receipt-item-row,
         .receipt-summary-row,
         .receipt-total-row {
             display: flex;
@@ -106,15 +106,25 @@
             gap: 10px;
         }
         .receipt-meta-row { margin-bottom: 2px; }
-        .receipt-item-row { margin-bottom: 2px; align-items: flex-start; }
+        .receipt-items-header,
+        .receipt-item-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 42px 90px;
+            gap: 8px;
+            margin-bottom: 2px;
+            align-items: flex-start;
+        }
         .receipt-item-name {
-            flex: 1;
             padding-right: 10px;
             word-break: break-word;
         }
+        .receipt-item-qty,
+        .receipt-items-header span:nth-child(2) {
+            text-align: center;
+        }
         .receipt-item-amount {
-            min-width: 90px;
             text-align: right;
+            white-space: nowrap;
         }
         .receipt-items-header {
             margin: 8px 0 4px;
@@ -332,6 +342,6 @@
     </div>
     
     <script src="database.js?v=20260525b"></script>
-    <script src="analytics.js?v=20260525b"></script>
+    <script src="analytics.js?v=20260526a"></script>
 </body>
 </html>

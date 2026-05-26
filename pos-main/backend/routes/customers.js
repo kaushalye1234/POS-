@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Customer = require('../models/Customer');
+const { authenticateToken, authorize } = require('../middleware/auth');  // FIXED: Add auth
 
 function normalizeCustomerPayload(body = {}, fallbackId = '') {
     const parsedPoints = Number(body.points ?? body.loyaltyPoints ?? 0);
@@ -20,16 +21,31 @@ function normalizeCustomerPayload(body = {}, fallbackId = '') {
     };
 }
 
-// GET all
-router.get('/', async (req, res, next) => {
+// GET all (with pagination)
+router.get('/', authenticateToken, async (req, res, next) => {
     try {
-        const data = await Customer.find().sort({ createdAt: -1 });
-        res.json(data);
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            Customer.find()
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Customer.countDocuments()
+        ]);
+
+        res.json({
+            data,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+        });
     } catch (err) { next(err); }
 });
 
 // GET one
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authenticateToken, async (req, res, next) => {
     try {
         const data = await Customer.findOne({ id: req.params.id });
         if (!data) return res.status(404).json({ error: 'Not found' });
@@ -38,7 +54,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST new
-router.post('/', async (req, res, next) => {
+router.post('/', authenticateToken, async (req, res, next) => {
     try {
         const payload = normalizeCustomerPayload(req.body);
 
@@ -60,7 +76,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // PUT update
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const payload = normalizeCustomerPayload(req.body, req.params.id);
         const { id, ...updateData } = payload;
@@ -76,7 +92,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authenticateToken, authorize('admin'), async (req, res, next) => {
     try {
         const deleted = await Customer.findOneAndDelete({ id: req.params.id });
         if (!deleted) return res.status(404).json({ error: 'Not found' });

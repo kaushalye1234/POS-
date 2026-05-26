@@ -15,9 +15,9 @@ router.post('/login', async (req, res, next) => {
             return res.status(400).json({ error: 'Username and password are required.' });
         }
 
-        // Find user (case-insensitive username)
+        // Find user (case-insensitive username) - FIXED: Use lowercase comparison instead of regex
         const user = await User.findOne({
-            username: { $regex: new RegExp(`^${username}$`, 'i') }
+            username: username.toLowerCase()
         });
 
         if (!user) {
@@ -106,9 +106,9 @@ router.post('/register', async (req, res, next) => {
             }
         }
 
-        // Check for duplicate username
+        // Check for duplicate username - FIXED: Use lowercase comparison instead of regex
         const existing = await User.findOne({
-            username: { $regex: new RegExp(`^${username}$`, 'i') }
+            username: username.toLowerCase()
         });
         if (existing) {
             return res.status(409).json({ error: 'Username already taken.' });

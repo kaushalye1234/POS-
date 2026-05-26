@@ -81,6 +81,7 @@ let activeMongoConnection = {
     mode: config.mongoConnectionMode,
     fallbackUsed: false
 };
+let httpServer = null;
 
 function getDatabaseHealth() {
     const readyState = mongoose.connection.readyState;
@@ -133,7 +134,13 @@ app.get('/api/health', (req, res) => {
         timestamp: new Date().toISOString(),
         database,
         transactionSupport: supportsTransactions,
-        sync: getSyncStatus()
+        sync: getSyncStatus(),
+        runtime: {
+            envPath: config.runtimeEnvironment.runtimeEnvPath,
+            envLoadedFrom: config.runtimeEnvironment.loadedFrom || '',
+            runtimeRootDir: config.runtimeEnvironment.runtimeRootDir,
+            logDir: config.runtimeEnvironment.runtimeLogDir
+        }
     });
 });
 
@@ -157,6 +164,7 @@ app.use('/api/advances', authenticateToken, require('./routes/advances'));
 app.use('/api/barcode', authenticateToken, require('./routes/barcode'));
 app.use('/api/mappings', authenticateToken, authorize('admin', 'manager'), require('./routes/mappings'));
 app.use('/api/sync', authenticateToken, authorize('admin'), require('./routes/sync'));
+app.use('/api/settings', authenticateToken, require('./routes/settings'));
 
 // ============================================
 // Global Error Handler (always returns JSON)
@@ -187,6 +195,10 @@ app.use((err, req, res, next) => {
 });
 
 async function startServer() {
+    if (httpServer) {
+        return httpServer;
+    }
+
     if (!Array.isArray(config.mongoCandidates) || config.mongoCandidates.length === 0) {
         console.error('MongoDB configuration error: define MONGO_URI/MONGODB_URI or configure MONGO_LOCAL_URI / MONGO_REMOTE_URI.');
         process.exit(1);
@@ -206,10 +218,18 @@ async function startServer() {
         await probeTransactionSupport();
         startBackgroundSync();
 
-        app.listen(config.port, () => {
-            console.log(`Server running on port ${config.port}`);
-            console.log(`Environment: ${config.nodeEnv}`);
+        httpServer = await new Promise((resolve, reject) => {
+            const server = app.listen(config.port, () => {
+                console.log(`Server running on port ${config.port}`);
+                console.log(`Environment: ${config.nodeEnv}`);
+                console.log(`Runtime env path: ${config.runtimeEnvironment.runtimeEnvPath}`);
+                resolve(server);
+            });
+
+            server.on('error', reject);
         });
+
+        return httpServer;
     } catch (err) {
         console.error('MongoDB startup error:', err.message);
         if (Array.isArray(err.attempts) && err.attempts.length) {
@@ -217,18 +237,48 @@ async function startServer() {
                 console.error(`  ${attempt.source}: ${attempt.uri} -> ${attempt.message}`);
             });
         }
-        process.exit(1);
+        throw err;
+    }
+}
+
+async function stopServer() {
+    stopBackgroundSync();
+
+    if (httpServer) {
+        await new Promise((resolve, reject) => {
+            httpServer.close((error) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                resolve();
+            });
+        }).catch(() => {});
+        httpServer = null;
+    }
+
+    if (mongoose.connection.readyState !== 0) {
+        await mongoose.disconnect().catch(() => {});
     }
 }
 
 process.on('SIGINT', () => {
-    stopBackgroundSync();
-    process.exit(0);
+    stopServer().finally(() => process.exit(0));
 });
 
 process.on('SIGTERM', () => {
-    stopBackgroundSync();
-    process.exit(0);
+    stopServer().finally(() => process.exit(0));
 });
 
-startServer();
+if (require.main === module) {
+    startServer().catch(() => {
+        process.exit(1);
+    });
+}
+
+module.exports = {
+    app,
+    getDatabaseHealth,
+    startServer,
+    stopServer
+};

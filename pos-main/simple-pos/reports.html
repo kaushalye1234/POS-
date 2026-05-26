@@ -23,7 +23,8 @@
                 position: absolute;
                 left: 0;
                 top: 0;
-                width: 340px;
+                box-sizing: border-box;
+                width: 300px;
                 color: black;
                 background: white;
                 margin: 0 auto;
@@ -35,8 +36,9 @@
 
         .receipt-paper {
             background: white;
+            box-sizing: border-box;
+            width: 300px;
             padding: 20px;
-            max-width: 300px;
             margin: 0 auto;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             font-family: 'Courier New', monospace;
@@ -88,7 +90,6 @@
         }
         .receipt-meta-row,
         .receipt-amount-row,
-        .receipt-item-row,
         .receipt-total-row {
             display: flex;
             justify-content: space-between;
@@ -109,18 +110,25 @@
             margin: 8px 0 4px;
             font-weight: 700;
         }
+        .receipt-items-header,
         .receipt-item-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 42px 90px;
+            gap: 8px;
             align-items: flex-start;
             margin-bottom: 2px;
         }
         .receipt-item-name {
-            flex: 1;
             padding-right: 10px;
             word-break: break-word;
         }
+        .receipt-item-qty,
+        .receipt-items-header span:nth-child(2) {
+            text-align: center;
+        }
         .receipt-item-amount {
-            min-width: 90px;
             text-align: right;
+            white-space: nowrap;
         }
         .receipt-total-row {
             margin-top: 4px;
@@ -336,8 +344,9 @@
                         </div>
 
                         <div class="receipt-separator">----------------------------------------</div>
-                        <div class="receipt-item-row receipt-items-header">
+                        <div class="receipt-items-header">
                             <span>ITEM</span>
+                            <span>QTY</span>
                             <span>TOTAL</span>
                         </div>
                         <div id="detItemsTable">
@@ -362,7 +371,6 @@
 
                         <div class="receipt-footer">THANK YOU!</div>
                         <div class="receipt-footer">COME AGAIN!</div>
-                        <div class="receipt-footer">COME WITHIN 7 DAYS</div>
                     </div>
                 </div>
 
@@ -394,6 +402,6 @@
     </div>
 
     <script src="database.js?v=20260524i"></script>
-    <script src="reports.js?v=20260525a"></script>
+    <script src="reports.js?v=20260526a"></script>
 </body>
 </html>

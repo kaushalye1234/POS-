@@ -1,4 +1,6 @@
-require('dotenv').config();
+const { loadEnvironment } = require('./runtimeEnvironment');
+
+const runtimeEnvironment = loadEnvironment();
 
 const DEFAULT_DEV_MONGO_URI = 'mongodb://127.0.0.1:27017/fashion_shaa_pos';
 const DEFAULT_PORT = 5000;
@@ -145,5 +147,6 @@ module.exports = {
     businessTimeZone: readEnv('BUSINESS_TIME_ZONE') || DEFAULT_BUSINESS_TIME_ZONE,
     jwtSecret: readEnv('JWT_SECRET') || DEFAULT_JWT_SECRET,
     jwtExpiry: readEnv('JWT_EXPIRY', 'JWT_EXPIRES_IN') || DEFAULT_JWT_EXPIRY,
-    corsOrigins: parseCorsOrigins(readEnv('CORS_ORIGIN'))
+    corsOrigins: parseCorsOrigins(readEnv('CORS_ORIGIN')),
+    runtimeEnvironment
 };

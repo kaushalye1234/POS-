@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Supplier = require('../models/Supplier');
 const PurchaseOrder = require('../models/PurchaseOrder');
+const { authenticateToken, authorize } = require('../middleware/auth');
 
 function toPurchaseOrderId(rawId) {
     const normalized = String(rawId || '').trim();
@@ -88,16 +89,31 @@ function normalizePurchaseOrderPayload(body = {}, fallbackId = '') {
     };
 }
 
-// GET all suppliers
-router.get('/', async (req, res, next) => {
+// FIXED: Add authentication to all routes
+// GET all suppliers (with pagination)
+router.get('/', authenticateToken, async (req, res, next) => {
     try {
-        const data = await Supplier.find().sort({ createdAt: -1 });
-        res.json(data);
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            Supplier.find()
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Supplier.countDocuments()
+        ]);
+        res.json({
+            data,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit), hasMore: skip + limit < total }
+        });
     } catch (err) { next(err); }
 });
 
 // GET one supplier
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authenticateToken, async (req, res, next) => {
     try {
         const data = await Supplier.findOne({ id: req.params.id });
         if (!data) return res.status(404).json({ error: 'Not found' });
@@ -105,14 +121,27 @@ router.get('/:id', async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-// POST new supplier
-router.post('/', async (req, res, next) => {
+// POST new supplier - FIXED: Add auth and validation
+router.post('/', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const { id, name, contactPerson, phone, email, address } = req.body;
+        const errors = [];
 
-        // Basic validation
-        if (!id || !name) {
-            return res.status(400).json({ error: 'Missing required fields: id, name' });
+        if (!id || typeof id !== 'string') errors.push('id is required and must be a string');
+        if (!name || typeof name !== 'string') errors.push('name is required and must be a string');
+        if (contactPerson && typeof contactPerson !== 'string') errors.push('contactPerson must be a string');
+        if (phone && typeof phone !== 'string') errors.push('phone must be a string');
+        if (email && typeof email !== 'string') errors.push('email must be a string');
+        if (address && typeof address !== 'string') errors.push('address must be a string');
+
+        if (errors.length) return res.status(400).json({ errors });
+
+        // FIXED: Validate only known fields
+        const allowedFields = ['id', 'name', 'contactPerson', 'phone', 'email', 'address', 'notes'];
+        for (const key in req.body) {
+            if (!allowedFields.includes(key)) {
+                return res.status(400).json({ error: `Unknown field: ${key}` });
+            }
         }
 
         const newItem = new Supplier(req.body);
@@ -124,11 +153,18 @@ router.post('/', async (req, res, next) => {
     }
 });
 
-// PUT update supplier
-router.put('/:id', async (req, res, next) => {
+// PUT update supplier - FIXED: Add auth
+router.put('/:id', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
-        // Prevent changing id
         const { id, ...updateData } = req.body;
+
+        // FIXED: Validate unknown fields
+        const allowedFields = ['name', 'contactPerson', 'phone', 'email', 'address', 'notes'];
+        for (const key in updateData) {
+            if (!allowedFields.includes(key)) {
+                return res.status(400).json({ error: `Unknown field: ${key}` });
+            }
+        }
 
         const updated = await Supplier.findOneAndUpdate(
             { id: req.params.id },
@@ -140,8 +176,8 @@ router.put('/:id', async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-// DELETE supplier
-router.delete('/:id', async (req, res, next) => {
+// DELETE supplier - FIXED: Add admin-only auth
+router.delete('/:id', authenticateToken, authorize('admin'), async (req, res, next) => {
     try {
         const deleted = await Supplier.findOneAndDelete({ id: req.params.id });
         if (!deleted) return res.status(404).json({ error: 'Not found' });
@@ -149,20 +185,34 @@ router.delete('/:id', async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-// GET all purchase orders
-router.get('/po/all', async (req, res, next) => {
+// GET all purchase orders - FIXED: Add auth and pagination
+router.get('/po/all', authenticateToken, async (req, res, next) => {
     try {
-        const data = await PurchaseOrder.find().sort({ createdAt: -1 });
-        res.json(data);
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            PurchaseOrder.find()
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            PurchaseOrder.countDocuments()
+        ]);
+        res.json({
+            data,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit), hasMore: skip + limit < total }
+        });
     } catch (err) { next(err); }
 });
 
-// POST new purchase order
-router.post('/po/new', async (req, res, next) => {
+// POST new purchase order - FIXED: Add auth
+router.post('/po/new', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const payload = normalizePurchaseOrderPayload(req.body);
 
-        // Basic validation
+        // Validation
         if (!payload.supplierId) {
             return res.status(400).json({ error: 'Missing required field: supplierId' });
         }
@@ -182,8 +232,8 @@ router.post('/po/new', async (req, res, next) => {
     }
 });
 
-// PUT update purchase order
-router.put('/po/:id', async (req, res, next) => {
+// PUT update purchase order - FIXED: Add auth
+router.put('/po/:id', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const payload = normalizePurchaseOrderPayload(req.body, req.params.id);
         const { id, ...updateData } = payload;

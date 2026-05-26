@@ -30,7 +30,15 @@ async function run() {
     await mongoose.disconnect();
 
     // Start backend server as child process with MONGO_URI pointing to DB
-    const env = { ...process.env, MONGO_URI: uri, PORT: '5002' };
+    const env = {
+        ...process.env,
+        MONGO_URI: uri,
+        MONGO_CONNECTION_MODE: 'single',
+        MONGO_REMOTE_URI: '',
+        MONGO_LOCAL_URI: '',
+        MONGO_SYNC_ENABLED: 'false',
+        PORT: '5002'
+    };
     const child = spawn(process.execPath, ['server.js'], { cwd: __dirname + '/../', env, stdio: ['ignore', 'pipe', 'pipe'] });
 
     child.stdout.setEncoding('utf8');

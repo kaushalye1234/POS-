@@ -96,6 +96,35 @@
                     <h2 class="text-lg font-semibold">POS Behavior</h2>
                 </div>
                 <div class="glass-card rounded-xl p-8 flex flex-col gap-6 shadow-2xl">
+                    <div class="rounded-xl border border-slate-700/50 bg-slate-900/30 p-5 flex flex-col gap-4">
+                        <div class="flex flex-col gap-2">
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="text-base font-bold text-white">Sale Entry Mode</div>
+                                <span id="saleEntryModeSummary" class="inline-flex items-center rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-emerald-300">Manual Sales Allowed</span>
+                            </div>
+                            <p class="text-sm text-slate-400 leading-normal mb-0 max-w-xl">
+                                Choose whether checkout accepts open-price manual lines or only inventory-backed items with a real SKU. This is enforced in both the POS and the backend.
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <button type="button" data-sale-mode="inventory_only" class="sale-mode-btn rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-4 text-left transition-all">
+                                <div class="text-sm font-bold text-white">Inventory Only</div>
+                                <p class="mt-1 text-xs leading-relaxed text-slate-400">
+                                    SKU required for every line. Stock is validated and reduced on each sale item.
+                                </p>
+                            </button>
+                            <button type="button" data-sale-mode="manual_allowed" class="sale-mode-btn rounded-xl border border-slate-700 bg-slate-950/60 px-4 py-4 text-left transition-all">
+                                <div class="text-sm font-bold text-white">Manual Sales Allowed</div>
+                                <p class="mt-1 text-xs leading-relaxed text-slate-400">
+                                    Open-price lines can be sold without a SKU. Manual lines are saved without stock deduction.
+                                </p>
+                            </button>
+                        </div>
+
+                        <div id="saleEntryModeStatus" class="hidden text-sm font-semibold rounded-lg p-4 bg-slate-800 text-center"></div>
+                    </div>
+
                     <div class="flex items-center justify-between gap-6 pb-6 border-b border-slate-700/50">
                         <div class="flex flex-col gap-1.5">
                             <div class="text-base font-bold text-white">Item Number Popup</div>
@@ -269,8 +298,8 @@
         </footer>
     </div>
     
-    <script src="database.js"></script>
-    <script src="settings.js"></script>
+    <script src="database.js?v=20260526b"></script>
+    <script src="settings.js?v=20260526b"></script>
     <script src="migrate.js"></script>
 </body>
 </html>

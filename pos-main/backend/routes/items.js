@@ -4,20 +4,43 @@ const router = express.Router();
 const Item = require('../models/Item');
 const { generateSKU } = require('../utils/skuGenerator');
 const { importItemsFromCSV } = require('../utils/importer');
+const { authenticateToken, authorize } = require('../middleware/auth');
 
-// GET all items
-router.get('/', async (req, res, next) => {
+// FIXED: Add authentication and authorization middleware
+// GET all items (with pagination)
+router.get('/', authenticateToken, async (req, res, next) => {
     try {
-        const items = await Item.find().sort({ sku: 1 });
-        res.json(items);
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+        const skip = (page - 1) * limit;
+
+        const [items, total] = await Promise.all([
+            Item.find()
+                .sort({ sku: 1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Item.countDocuments()
+        ]);
+
+        res.json({
+            data: items,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit),
+                hasMore: skip + limit < total
+            }
+        });
     } catch (err) {
         next(err);
     }
 });
 
 // CSV import endpoint
-// NOTE: must be registered BEFORE "/:sku" routes, otherwise it will be treated as a SKU.
-router.post('/import', async (req, res, next) => {
+// FIXED: Add authorization check
+router.post('/import', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     let session = null;
     let useSession = false;
     try {
@@ -60,7 +83,7 @@ router.post('/import', async (req, res, next) => {
 });
 
 // GET single item by SKU
-router.get('/:sku', async (req, res, next) => {
+router.get('/:sku', authenticateToken, async (req, res, next) => {
     try {
         const item = await Item.findOne({ sku: req.params.sku });
         if (!item) return res.status(404).json({ error: 'Item not found' });
@@ -71,25 +94,64 @@ router.get('/:sku', async (req, res, next) => {
 });
 
 // POST new item (handles Auto-Generated SKUs or explicit SKUs)
-router.post('/', async (req, res, next) => {
+// FIXED: Add authorization, input validation
+router.post('/', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
-        const { name, price, stockLevel } = req.body;
+        const { name, price, stockLevel, category, description, barcode, sku: providedSku, reorderLevel, supplier } = req.body;
 
-        // Basic validation
-        if (!name) {
-            return res.status(400).json({ error: 'Missing required field: name' });
-        }
-        if (price !== undefined && typeof price !== 'number') {
-            return res.status(400).json({ error: 'Price must be a number' });
-        }
-        if (stockLevel !== undefined && typeof stockLevel !== 'number') {
-            return res.status(400).json({ error: 'Stock level must be a number' });
+        // FIXED: Validate required fields
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            return res.status(400).json({ error: 'Missing or invalid required field: name (must be non-empty string)' });
         }
 
-        const itemData = req.body;
+        if (price === undefined || typeof price !== 'number' || price < 0) {
+            return res.status(400).json({ error: 'Price is required and must be a non-negative number' });
+        }
+
+        // FIXED: Validate optional numeric fields
+        if (stockLevel !== undefined) {
+            if (typeof stockLevel !== 'number' || stockLevel < 0 || !Number.isInteger(stockLevel)) {
+                return res.status(400).json({ error: 'Stock level must be a non-negative integer' });
+            }
+        }
+
+        if (reorderLevel !== undefined) {
+            if (typeof reorderLevel !== 'number' || reorderLevel < 0 || !Number.isInteger(reorderLevel)) {
+                return res.status(400).json({ error: 'Reorder level must be a non-negative integer' });
+            }
+        }
+
+        // Validate optional string fields
+        const validationMap = {
+            category: 100,
+            description: 1000,
+            barcode: 50,
+            supplier: 100
+        };
+
+        for (const [field, maxLen] of Object.entries(validationMap)) {
+            if (req.body[field] !== undefined && (typeof req.body[field] !== 'string' || req.body[field].length > maxLen)) {
+                return res.status(400).json({ error: `${field} must be a string with max ${maxLen} characters` });
+            }
+        }
+
+        // FIXED: Build item data with only allowed fields
+        const itemData = {
+            name: name.trim(),
+            price: parseFloat(price),
+            stockLevel: stockLevel ?? 0,
+            category: category ? String(category).trim() : undefined,
+            description: description ? String(description).trim() : undefined,
+            barcode: barcode ? String(barcode).trim() : undefined,
+            reorderLevel: reorderLevel ?? 0,
+            supplier: supplier ? String(supplier).trim() : undefined
+        };
+
         // Generate a category-aware SKU if none provided
-        if (!itemData.sku) {
+        if (!providedSku) {
             itemData.sku = generateSKU(itemData.category || itemData.name || 'OTHER');
+        } else {
+            itemData.sku = String(providedSku).trim();
         }
 
         const newItem = new Item(itemData);
@@ -97,23 +159,59 @@ router.post('/', async (req, res, next) => {
         res.status(201).json(savedItem);
     } catch (err) {
         if (err.code === 11000) {
-            return res.status(400).json({ error: 'SKU already exists' });
+            return res.status(409).json({ error: 'SKU already exists' });
         }
         next(err);
     }
 });
 
-// PUT update item — BACK-006: runValidators ensures schema rules apply on updates
-router.put('/:sku', async (req, res, next) => {
+// PUT update item
+// FIXED: Add authorization, input validation
+router.put('/:sku', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         // Prevent changing sku
-        const { sku, ...updateData } = req.body;
+        const { sku: _sku, ...updateData } = req.body;
+
+        // FIXED: Reject unknown fields
+        const allowedFields = ['name', 'price', 'stockLevel', 'category', 'description', 'barcode', 'reorderLevel', 'supplier'];
+        const unknownFields = Object.keys(updateData).filter(key => !allowedFields.includes(key));
+        
+        if (unknownFields.length > 0) {
+            return res.status(400).json({
+                error: 'Unknown fields in request',
+                unknownFields
+            });
+        }
+
+        // Validate types and values
+        if (updateData.name !== undefined && (typeof updateData.name !== 'string' || updateData.name.trim().length === 0)) {
+            return res.status(400).json({ error: 'name must be a non-empty string' });
+        }
+
+        if (updateData.price !== undefined && (typeof updateData.price !== 'number' || updateData.price < 0)) {
+            return res.status(400).json({ error: 'price must be a non-negative number' });
+        }
+
+        if (updateData.stockLevel !== undefined && (typeof updateData.stockLevel !== 'number' || updateData.stockLevel < 0)) {
+            return res.status(400).json({ error: 'stockLevel must be a non-negative number' });
+        }
+
+        // Clean up the data (trim strings)
+        const cleanedData = {};
+        for (const [key, value] of Object.entries(updateData)) {
+            if (typeof value === 'string') {
+                cleanedData[key] = value.trim();
+            } else {
+                cleanedData[key] = value;
+            }
+        }
 
         const updated = await Item.findOneAndUpdate(
             { sku: req.params.sku },
-            { $set: updateData },
+            { $set: cleanedData },
             { returnDocument: 'after', runValidators: true }
         );
+
         if (!updated) return res.status(404).json({ error: 'Item not found' });
         res.json(updated);
     } catch (err) {
@@ -122,7 +220,8 @@ router.put('/:sku', async (req, res, next) => {
 });
 
 // DELETE item
-router.delete('/:sku', async (req, res, next) => {
+// FIXED: Add authorization check
+router.delete('/:sku', authenticateToken, authorize('admin'), async (req, res, next) => {
     try {
         const deleted = await Item.findOneAndDelete({ sku: req.params.sku });
         if (!deleted) return res.status(404).json({ error: 'Item not found' });

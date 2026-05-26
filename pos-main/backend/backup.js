@@ -16,6 +16,10 @@ const fs = require('fs');
 const { mongoUri: MONGO_URI } = require('./config');
 const BACKUP_DIR = path.join(__dirname, 'backups');
 
+function redactMongoUri(uri) {
+    return String(uri || '').replace(/\/\/([^@/]+)@/, '//***@');
+}
+
 function timestamp() {
     return new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 }
@@ -29,7 +33,7 @@ function backup() {
     ensureDir(backupPath);
 
     console.log(`\n🔄 Backing up database...`);
-    console.log(`   URI: ${MONGO_URI}`);
+    console.log(`   URI: ${redactMongoUri(MONGO_URI)}`);
     console.log(`   To:  ${backupPath}\n`);
 
     try {
@@ -67,7 +71,7 @@ function restore(target) {
     }
 
     console.log(`\n🔄 Restoring database...`);
-    console.log(`   URI:  ${MONGO_URI}`);
+    console.log(`   URI:  ${redactMongoUri(MONGO_URI)}`);
     console.log(`   From: ${restorePath}\n`);
     console.log('⚠️  WARNING: This will OVERWRITE existing data!\n');
 

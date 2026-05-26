@@ -1,8 +1,8 @@
 import { state, eventTarget } from './state.js';
 import * as calc from './calculator.js?v=20260524i';
-import * as cart from './cart.js?v=20260524i';
-import * as checkout from './checkout.js?v=20260525a';
-import * as barcode from './barcode.js?v=20260524i';
+import * as cart from './cart.js?v=20260526b';
+import * as checkout from './checkout.js?v=20260526b';
+import * as barcode from './barcode.js?v=20260526b';
 
 // DOM Elements
 const UI = {
@@ -166,6 +166,12 @@ function updateCheckoutActionState() {
 function addCurrentItem(discountEligible = false) {
     const multiplyResult = calc.resolveMultiplyModeForAdd();
     if (multiplyResult.blocked) {
+        return;
+    }
+
+    const cachedPosSettings = window.POS_API?.getCachedPosSettings?.();
+    if (cachedPosSettings?.saleEntryMode === 'inventory_only') {
+        alert('Inventory Only mode is active. Manual keypad entries are disabled for checkout. Scan or select a real inventory item with a SKU instead.');
         return;
     }
 

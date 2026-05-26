@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const DiscountRule = require('../models/DiscountRule');
+const { authenticateToken, authorize } = require('../middleware/auth');  // FIXED: Add auth
 
 const ALLOWED_TYPES = new Set(['percentage', 'fixed', 'bogo']);
 const ALLOWED_VALUE_TYPES = new Set(['fixed', 'range']);
@@ -54,16 +55,31 @@ function validateRule(rule) {
     return errors;
 }
 
-// GET all
-router.get('/', async (req, res, next) => {
+// GET all (with pagination)
+router.get('/', authenticateToken, async (req, res, next) => {
     try {
-        const data = await DiscountRule.find().sort({ createdAt: -1 });
-        res.json(data);
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
+        const skip = (page - 1) * limit;
+
+        const [data, total] = await Promise.all([
+            DiscountRule.find()
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            DiscountRule.countDocuments()
+        ]);
+
+        res.json({
+            data,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+        });
     } catch (err) { next(err); }
 });
 
 // GET one
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authenticateToken, async (req, res, next) => {
     try {
         const data = await DiscountRule.findOne({ id: req.params.id });
         if (!data) return res.status(404).json({ error: 'Not found' });
@@ -72,7 +88,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // POST new
-router.post('/', async (req, res, next) => {
+router.post('/', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         const { id, name, type } = req.body;
         if (!id || !name || !type) {
@@ -92,7 +108,7 @@ router.post('/', async (req, res, next) => {
 });
 
 // PUT update
-router.put('/:id', async (req, res, next) => {
+router.put('/:id', authenticateToken, authorize('admin', 'manager'), async (req, res, next) => {
     try {
         // Prevent changing id
         const { id, ...updateData } = req.body;
@@ -115,7 +131,7 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', authenticateToken, authorize('admin'), async (req, res, next) => {
     try {
         const deleted = await DiscountRule.findOneAndDelete({ id: req.params.id });
         if (!deleted) return res.status(404).json({ error: 'Not found' });

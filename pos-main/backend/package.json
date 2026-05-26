@@ -7,6 +7,7 @@
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:parser": "node tests/run-parser-tests.js",
+    "bootstrap-admin": "node scripts/bootstrap-admin.js",
     "migrate": "node migrations/run-migrations.js",
     "test:integration": "node tests/run-sales-integration-local.js"
   },

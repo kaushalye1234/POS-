@@ -269,10 +269,32 @@ export async function printReceiptAndSave(employeeIdRaw, customerIdRaw, customer
     const saleSaver = window.POS_API?.saveSale || window.saveSale;
     const databaseReady = window.POS_API?.whenDatabaseReady;
     const loyaltyUpdater = window.POS_API?.addLoyaltyPoints || window.updateCustomerLoyaltyPoints;
+    const posSettingsGetter = window.POS_API?.getPosSettings || window.getPosSettings;
 
     if (typeof saleSaver !== 'function') {
         alert('Sales API is not ready yet. Please try again in a moment.');
         return false;
+    }
+
+    try {
+        if (typeof posSettingsGetter === 'function') {
+            const posSettings = await posSettingsGetter();
+            if (posSettings?.saleEntryMode === 'inventory_only') {
+                const manualItems = state.items.filter((item) => !item.sku);
+                if (manualItems.length > 0) {
+                    const previewNames = manualItems
+                        .slice(0, 3)
+                        .map((item) => item.name || 'Manual item')
+                        .join(', ');
+                    const remainingCount = manualItems.length - Math.min(manualItems.length, 3);
+                    const remainingLabel = remainingCount > 0 ? ` and ${remainingCount} more` : '';
+                    alert(`Inventory Only mode is active, so manual price entries cannot be checked out. Remove or replace these lines with real inventory items first: ${previewNames}${remainingLabel}.`);
+                    return false;
+                }
+            }
+        }
+    } catch (error) {
+        console.warn('Could not load POS settings before checkout:', error);
     }
 
     try {

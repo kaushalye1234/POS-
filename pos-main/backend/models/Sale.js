@@ -5,6 +5,11 @@ const saleItemSchema = new mongoose.Schema({
     sku: { type: String, required: false, trim: true },
     itemName: { type: String, required: true, trim: true },
     category: { type: String, trim: true },
+    entryMode: {
+        type: String,
+        enum: ['inventory', 'manual'],
+        default: 'inventory'
+    },
     quantity: { type: Number, required: true, min: [1, 'Quantity must be at least 1'] },
     unitPrice: { type: Number, required: true, min: [0, 'Price cannot be negative'] },
     totalPrice: { type: Number, required: true, min: [0, 'Total cannot be negative'] },
@@ -33,6 +38,17 @@ const saleSchema = new mongoose.Schema({
         type: Number,
         default: 0,
         min: [0, 'Discount cannot be negative']
+    },
+    discountPercentage: {
+        type: Number,
+        default: 0,
+        min: [0, 'Discount percentage cannot be negative'],
+        max: [100, 'Discount percentage cannot exceed 100']
+    },
+    discountAmount: {
+        type: Number,
+        default: 0,
+        min: [0, 'Discount amount cannot be negative']
     },
     amountReceived: {
         type: Number,

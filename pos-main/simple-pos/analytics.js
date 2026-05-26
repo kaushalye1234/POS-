@@ -338,6 +338,21 @@ function formatReceiptAmount(amount) {
     });
 }
 
+function formatReceiptDateValue(rawDate) {
+    if (!rawDate) return '-';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(rawDate))) {
+        const [year, month, day] = String(rawDate).split('-');
+        return `${day}/${month}/${year}`;
+    }
+
+    const parsed = new Date(rawDate);
+    if (Number.isNaN(parsed.getTime())) return '-';
+    const day = String(parsed.getDate()).padStart(2, '0');
+    const month = String(parsed.getMonth() + 1).padStart(2, '0');
+    const year = parsed.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
 // Update stats cards
 function updateStats(sales) {
     const totalSales = sales.reduce((sum, s) => sum + Number(s.totalAmount || 0), 0);
@@ -524,7 +539,8 @@ function renderInvoiceModal(sale, items) {
 
     const itemsHtml = items.map(item => `
         <div class="receipt-item-row">
-            <span class="receipt-item-name">${escapeHtml(item.itemName)} x${escapeHtml(String(item.quantity || 0))}</span>
+            <span class="receipt-item-name">${escapeHtml(item.itemName || item.name || 'Item')}</span>
+            <span class="receipt-item-qty">${escapeHtml(String(item.quantity || 0))}</span>
             <span class="receipt-item-amount">${formatReceiptAmount(item.totalPrice)}</span>
         </div>
     `).join('');
@@ -552,17 +568,18 @@ function renderInvoiceModal(sale, items) {
                 <div class="receipt-title">SALES RECEIPT</div>
 
                 <div class="receipt-meta-row">
-                    <span>Date: ${escapeHtml(sale.saleDate || '-')}</span>
+                    <span>Date: ${escapeHtml(formatReceiptDateValue(sale.saleDate || '-'))}</span>
                     <span>Time: ${escapeHtml(sale.saleTime || '-')}</span>
                 </div>
                 <div class="receipt-meta-row">
-                    <span>Employee: ${escapeHtml(sale.employeeId || '-')}</span>
+                    <span>Employee: #${escapeHtml(sale.employeeId || '-')}</span>
                     <span>Receipt: ${escapeHtml(sale.receiptId || sale.id || '-')}</span>
                 </div>
 
                 <div class="receipt-separator">----------------------------------------</div>
-                <div class="receipt-item-row receipt-items-header">
+                <div class="receipt-items-header">
                     <span>ITEM</span>
+                    <span>QTY</span>
                     <span>TOTAL</span>
                 </div>
                 ${itemsHtml || '<div class="receipt-center-line">No items recorded.</div>'}
@@ -593,7 +610,6 @@ function renderInvoiceModal(sale, items) {
                 <div class="receipt-separator">========================================</div>
                 <div class="receipt-footer">THANK YOU!</div>
                 <div class="receipt-footer">COME AGAIN!</div>
-                <div class="receipt-footer">COME WITHIN 7 DAYS</div>
             </div>
         </div>
     `;

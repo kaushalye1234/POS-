@@ -40,7 +40,34 @@
       "!dist/**",
       "!tests/**",
       "!playwright-report/**",
-      "!test-results/**"
+      "!test-results/**",
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "**/*",
+          "!node_modules/**",
+          "!tests/**",
+          "!.env",
+          "!backend-launch*.log"
+        ]
+      }
+    ],
+    "extraFiles": [
+      {
+        "from": "../setup/windows/Setup-ClientPC.bat",
+        "to": "Setup-ClientPC.bat"
+      },
+      {
+        "from": "../setup/windows/Setup-ClientPC.ps1",
+        "to": "Setup-ClientPC.ps1"
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/.env.example",
+        "to": "templates/backend.env.example"
+      }
     ],
     "win": {
       "target": [
@@ -58,8 +85,8 @@
       "output": "dist"
     }
   },
-
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "7zip-bin": "^5.2.0",
     "abbrev": "^3.0.1",
     "agent-base": "^7.1.4",
@@ -79,6 +106,7 @@
     "at-least-node": "^1.0.0",
     "balanced-match": "^1.0.2",
     "base64-js": "^1.5.1",
+    "bcryptjs": "^3.0.3",
     "binary-extensions": "^2.3.0",
     "bl": "^4.1.0",
     "boolean": "^3.2.0",
@@ -89,6 +117,7 @@
     "buffer-from": "^1.1.2",
     "builder-util": "^26.3.4",
     "builder-util-runtime": "^9.5.1",
+    "bwip-js": "^4.10.1",
     "cacache": "^19.0.1",
     "cacheable-lookup": "^5.0.4",
     "cacheable-request": "^7.0.4",
@@ -110,6 +139,7 @@
     "commander": "^5.1.0",
     "compare-version": "^0.1.2",
     "concat-map": "^0.0.1",
+    "cors": "^2.8.6",
     "cross-dirname": "^0.1.0",
     "cross-spawn": "^7.0.6",
     "cssesc": "^3.0.0",
@@ -126,7 +156,7 @@
     "dir-compare": "^4.2.0",
     "dlv": "^1.1.3",
     "dmg-builder": "^26.4.0",
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.4.2",
     "dotenv-expand": "^11.0.7",
     "dunder-proto": "^1.0.1",
     "eastasianwidth": "^0.2.0",
@@ -147,6 +177,8 @@
     "escalade": "^3.2.0",
     "escape-string-regexp": "^4.0.0",
     "exponential-backoff": "^3.1.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
     "extract-zip": "^2.0.1",
     "fast-deep-equal": "^3.1.3",
     "fast-glob": "^3.3.3",
@@ -208,6 +240,7 @@
     "json-stringify-safe": "^5.0.1",
     "json5": "^2.2.3",
     "jsonfile": "^4.0.0",
+    "jsonwebtoken": "^9.0.3",
     "keyv": "^4.5.4",
     "lazy-val": "^1.0.5",
     "lilconfig": "^2.1.0",
@@ -236,6 +269,7 @@
     "minipass-sized": "^1.0.3",
     "minizlib": "^3.1.0",
     "mkdirp": "^1.0.4",
+    "mongoose": "^9.6.2",
     "ms": "^2.1.3",
     "mz": "^2.7.0",
     "nanoid": "^3.3.11",
