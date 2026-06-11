@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="description" content="Fashion Shaa Corporate POS System - Printer Settings">
+    <meta property="og:title" content="Fashion Shaa POS - Printers">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System - Printer Settings">
+    <meta property="og:type" content="website">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Printer Settings</title>
+    <style>
+        @import url("output.css");
+        @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+        @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
+        .glass {
+            background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .bg-gradient-mesh {
+            background-color: #0f172a;
+            background-image: radial-gradient(at 0% 0%, rgba(220, 38, 38, 0.1) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen bg-gradient-mesh">
+    <div class="max-w-[1400px] mx-auto px-6 py-8">
+        
+        <!-- Header Section -->
+        <header class="glass rounded-xl px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 mb-8 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-white text-2xl">grid_view</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight italic uppercase leading-none">
+                        FASHION <span class="text-primary">SHAA</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Stock & Admin Console</p>
+                </div>
+            </div>
+            
+            <!-- Navigation Links -->
+            <nav class="flex flex-wrap items-center gap-2 bg-slate-900/40 p-1.5 rounded-xl border border-white/5">
+                <a href="items.html" class="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5">
+                    <span class="material-symbols-outlined text-sm">inventory_2</span>
+                    <span>Inventory</span>
+                </a>
+                <a href="suppliers.html" class="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5">
+                    <span class="material-symbols-outlined text-sm">local_shipping</span>
+                    <span>Suppliers</span>
+                </a>
+                <a href="discounts.html" class="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5">
+                    <span class="material-symbols-outlined text-sm">percent</span>
+                    <span>Discounts</span>
+                </a>
+                <a href="analytics.html" class="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5">
+                    <span class="material-symbols-outlined text-sm">analytics</span>
+                    <span>Analytics</span>
+                </a>
+                <a href="users.html" class="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5">
+                    <span class="material-symbols-outlined text-sm">group</span>
+                    <span>Users</span>
+                </a>
+                <a href="db-issues.html" class="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 text-slate-400 hover:text-white hover:bg-white/5">
+                    <span class="material-symbols-outlined text-sm">database</span>
+                    <span>Database</span>
+                </a>
+                <a href="printers.html" class="px-4 py-2 rounded-lg font-semibold text-sm transition-all flex items-center gap-2 text-white bg-primary shadow-lg shadow-primary/10">
+                    <span class="material-symbols-outlined text-sm">print</span>
+                    <span>Printers</span>
+                </a>
+            </nav>
+
+            <button onclick="window.POS_API.logoutUser()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-5 py-2.5 rounded-lg font-semibold text-sm transition-all border border-slate-700">
+                <span class="material-symbols-outlined text-sm">logout</span>
+                <span>Sign Out</span>
+            </button>
+        </header>
+
+        <!-- Main Content -->
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Panel: Printer settings form -->
+            <div class="glass p-8 rounded-2xl shadow-xl flex flex-col gap-6">
+                <div class="flex items-center gap-3 border-b border-white/10 pb-4">
+                    <span class="material-symbols-outlined text-primary text-3xl">print_connect</span>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Printer Configuration</h2>
+                        <p class="text-xs text-slate-400">Configure receipt and barcode label margins</p>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <!-- Printer Selection -->
+                    <div class="flex flex-col gap-2">
+                        <label for="printerSelect" class="text-sm font-semibold text-slate-300">Select Active Printer</label>
+                        <select id="printerSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
+                            <option value="">Default OS Printer</option>
+                        </select>
+                        <p class="text-xs text-slate-500">Only printers installed on this system are shown.</p>
+                    </div>
+
+                    <!-- Label Dimensions -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-2">
+                            <label for="labelWidth" class="text-sm font-semibold text-slate-300">Label Width (mm)</label>
+                            <input id="labelWidth" type="number" min="20" max="100" value="50" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="labelHeight" class="text-sm font-semibold text-slate-300">Label Height (mm)</label>
+                            <input id="labelHeight" type="number" min="10" max="100" value="25" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                    </div>
+
+                    <!-- Orientation & Rotation -->
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-2">
+                            <label for="printOrientation" class="text-sm font-semibold text-slate-300">Driver Orientation</label>
+                            <select id="printOrientation" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
+                                <option value="portrait">Portrait</option>
+                                <option value="landscape">Landscape</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="contentRotation" class="text-sm font-semibold text-slate-300">CSS Content Rotation</label>
+                            <select id="contentRotation" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all">
+                                <option value="0">No Rotation (0°)</option>
+                                <option value="90">90° Clockwise</option>
+                                <option value="180">180°</option>
+                                <option value="270">90° Counter-Clockwise</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Margins -->
+                    <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider mt-4">Margins (mm)</h3>
+                    <div class="grid grid-cols-4 gap-3">
+                        <div class="flex flex-col gap-1.5">
+                            <label for="marginTop" class="text-xs font-semibold text-slate-500">Top</label>
+                            <input id="marginTop" type="number" min="0" max="20" value="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-white text-center focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="marginBottom" class="text-xs font-semibold text-slate-500">Bottom</label>
+                            <input id="marginBottom" type="number" min="0" max="20" value="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-white text-center focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="marginLeft" class="text-xs font-semibold text-slate-500">Left</label>
+                            <input id="marginLeft" type="number" min="0" max="20" value="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-white text-center focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="marginRight" class="text-xs font-semibold text-slate-500">Right</label>
+                            <input id="marginRight" type="number" min="0" max="20" value="1" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-white text-center focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                    </div>
+
+                    <!-- Styling customization -->
+                    <div class="grid grid-cols-2 gap-4 mt-2">
+                        <div class="flex flex-col gap-2">
+                            <label for="stickerFontSize" class="text-sm font-semibold text-slate-300">Font Size (pt)</label>
+                            <input id="stickerFontSize" type="number" min="6" max="18" value="8" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label for="stickerPadding" class="text-sm font-semibold text-slate-300">Sticker Padding (px)</label>
+                            <input id="stickerPadding" type="number" min="0" max="30" value="4" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" />
+                        </div>
+                    </div>
+
+                    <!-- Button Actions -->
+                    <div class="flex gap-4 pt-4">
+                        <button id="saveSettingsBtn" class="flex-1 bg-primary hover:bg-red-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-lg">save</span>
+                            Save Preferences
+                        </button>
+                        <button id="testPrintBtn" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined text-lg">print</span>
+                            Print Test Sticker
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Label preview simulator -->
+            <div class="glass p-8 rounded-2xl shadow-xl flex flex-col gap-6">
+                <div class="flex items-center gap-3 border-b border-white/10 pb-4">
+                    <span class="material-symbols-outlined text-secondary text-3xl">visibility</span>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">Live Sticker Simulator</h2>
+                        <p class="text-xs text-slate-400">Visualization of the printed sticker based on layout inputs</p>
+                    </div>
+                </div>
+
+                <!-- Simulation frame -->
+                <div class="flex-1 flex items-center justify-center bg-slate-950/40 rounded-xl p-8 border border-white/5 min-h-[300px]">
+                    <div id="simulatedSticker" class="bg-white text-black font-mono shadow-2xl relative transition-all" style="width: 250px; height: 125px; padding: 4px; display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 4px; box-sizing: border-box;">
+                        <div class="w-full h-full flex flex-col justify-between items-center text-center leading-tight">
+                            <div class="font-bold text-[10px]" style="font-family:'Courier New',Courier,monospace;">FASHION SHAA</div>
+                            <div class="text-[8px]">TEST SKU ITEM NAME</div>
+                            
+                            <!-- Dummy barcode graphic bars -->
+                            <div class="w-full flex items-end justify-center h-8 my-1" style="gap: 1px;">
+                                <div class="bg-black w-[2px] h-full"></div>
+                                <div class="bg-black w-[1px] h-full"></div>
+                                <div class="bg-black w-[3px] h-full"></div>
+                                <div class="bg-black w-[1px] h-full"></div>
+                                <div class="bg-black w-[2px] h-full"></div>
+                                <div class="bg-black w-[1px] h-full"></div>
+                                <div class="bg-black w-[4px] h-full"></div>
+                                <div class="bg-black w-[2px] h-full"></div>
+                                <div class="bg-black w-[1px] h-full"></div>
+                                <div class="bg-black w-[3px] h-full"></div>
+                                <div class="bg-black w-[1px] h-full"></div>
+                                <div class="bg-black w-[2px] h-full"></div>
+                            </div>
+                            
+                            <div class="text-[8px] tracking-[2px] font-bold">123456789</div>
+                            <div class="text-[9px] font-bold">Rs. 1,250.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Script dependencies -->
+    <script src="database.js"></script>
+    <script src="auth-gate.js"></script>
+    <script src="printers.js"></script>
+</body>
+</html>

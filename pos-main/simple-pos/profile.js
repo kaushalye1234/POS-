@@ -74,12 +74,6 @@ function renderQuickLinks(role) {
             title: 'Dashboard',
             description: 'Open reports, returns, shifts, and operations.'
         });
-        links.push({
-            href: 'items.html',
-            icon: 'inventory_2',
-            title: 'Inventory',
-            description: 'Manage stock, item setup, and performance.'
-        });
     }
 
     if (role === 'admin' || role === 'manager') {

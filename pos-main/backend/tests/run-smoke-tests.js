@@ -28,7 +28,7 @@ async function run() {
     await mongoose.disconnect();
 
     // Start backend server as child process with MONGO_URI pointing to DB
-    const env = { ...process.env, MONGO_URI: uri, PORT: '5010' };
+    const env = { ...process.env, MONGO_URI: uri, MONGO_CONNECTION_MODE: 'single', PORT: '5010' };
     const child = spawn(process.execPath, ['server.js'], { cwd: __dirname + '/../', env, stdio: ['ignore', 'pipe', 'pipe'] });
 
     child.stdout.setEncoding('utf8');
@@ -52,7 +52,7 @@ async function run() {
         // 1) Create item with barcode
         let resp = await fetch(`${base}/api/items`, {
             method: 'POST', headers,
-            body: JSON.stringify({ sku: 'QA-SKU-1', barcode: '8901234567890', name: 'QA Barcode Item', price: 12.5, stockLevel: 10 })
+            body: JSON.stringify({ sku: 'QA-SKU-1', barcode: '8901234567890', name: 'QA Barcode Item', price: 12.5, costPrice: 8, stockLevel: 10 })
         });
         if (!resp.ok) throw new Error('Create item failed: ' + (await resp.text()));
         console.log('Item with barcode created');

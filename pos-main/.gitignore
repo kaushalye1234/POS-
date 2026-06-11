@@ -31,3 +31,11 @@ npm-debug.log*
 
 # Electron
 *.asar
+
+# Archives / packaged builds
+*.7z
+*.zip
+*.rar
+
+# Generated CSS
+output.css

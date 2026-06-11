@@ -39,16 +39,20 @@ function parseCSV(text) {
 async function importItemsFromCSV(csvText, session = null) {
     const { headers, rows } = parseCSV(csvText);
     const results = { created: 0, updated: 0, errors: [] };
+    const hasSizeColumn = headers.includes('size');
 
     for (const [idx, row] of rows.entries()) {
         try {
-            // Accept headers: sku, name, price, stocklevel, category, storedat
+            // Accept headers: sku, name, price, stocklevel, category, size, storedat
             let sku = (row.sku || '').toString().trim();
             const barcode = (row.barcode || '').toString().trim();
             const name = (row.name || '').toString().trim();
             const price = row.price !== undefined && row.price !== '' ? parseFloat(row.price) : 0;
+            const costPrice = row.costprice !== undefined && row.costprice !== '' ? parseFloat(row.costprice) : 0;
+            const maxDiscountPercent = row.maxdiscountpercent !== undefined && row.maxdiscountpercent !== '' ? parseFloat(row.maxdiscountpercent) : 30;
             const stockLevel = row.stocklevel !== undefined && row.stocklevel !== '' ? parseInt(row.stocklevel, 10) : 0;
             const category = (row.category || '').toString().trim() || 'General';
+            const size = (row.size || '').toString().trim();
 
             const storedAtRaw = (row.storedat ?? row.stored_date ?? row.storeddate ?? '').toString().trim();
             const storedAt = storedAtRaw ? new Date(storedAtRaw) : null;
@@ -72,7 +76,16 @@ async function importItemsFromCSV(csvText, session = null) {
             }
 
             const query = { sku };
-            const update = { $set: { name, price: isNaN(price) ? 0 : price, category } };
+            const update = { 
+                $set: { 
+                    name, 
+                    price: isNaN(price) ? 0 : price, 
+                    costPrice: isNaN(costPrice) ? 0 : costPrice,
+                    maxDiscountPercent: isNaN(maxDiscountPercent) ? 30 : maxDiscountPercent,
+                    category
+                } 
+            };
+            if (hasSizeColumn) update.$set.size = size;
             if (barcode) update.$set.barcode = barcode;
             if (storedAtValid) update.$set.storedAt = storedAt;
             const opts = { upsert: true, returnDocument: 'after' };

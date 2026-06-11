@@ -1,6 +1,32 @@
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
-const { exec } = require('child_process');
+const { exec, spawn } = require('child_process');
+
+function startBackendServer() {
+    const backendPath = path.join(__dirname, '..', 'backend');
+    const serverScript = path.join(backendPath, 'server.js');
+    const fs = require('fs');
+
+    if (fs.existsSync(serverScript)) {
+        console.log('Spawning backend server child process...');
+        try {
+            const outLog = fs.openSync(path.join(backendPath, 'backend-runtime.out.log'), 'a');
+            const errLog = fs.openSync(path.join(backendPath, 'backend-runtime.err.log'), 'a');
+
+            const child = spawn('node', ['server.js'], {
+                cwd: backendPath,
+                detached: true,
+                stdio: ['ignore', outLog, errLog]
+            });
+
+            child.unref();
+        } catch (e) {
+            console.error('Failed to spawn backend process:', e);
+        }
+    } else {
+        console.warn('Backend server script not found at:', serverScript);
+    }
+}
 
 const CSP = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'";
 
@@ -90,7 +116,7 @@ function createWindow() {
 }
 
 // Silent Printing Handler
-ipcMain.on('print-receipt', (event, html) => {
+ipcMain.on('print-receipt', (event, html, options) => {
     let printWin = new BrowserWindow({
         show: false,
         webPreferences: {
@@ -102,12 +128,23 @@ ipcMain.on('print-receipt', (event, html) => {
     const safeHtml = injectCspMeta(html, CSP);
     printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(safeHtml)}`);
 
+    let printOptions = {
+        silent: true,
+        printBackground: true,
+        deviceName: ''
+    };
+
+    if (typeof options === 'string') {
+        printOptions.deviceName = options;
+    } else if (options && typeof options === 'object') {
+        printOptions.deviceName = options.printerName || '';
+        if (options.landscape !== undefined) {
+            printOptions.landscape = options.landscape;
+        }
+    }
+
     printWin.webContents.on('did-finish-load', () => {
-        printWin.webContents.print({
-            silent: true,
-            printBackground: true,
-            deviceName: '' // Uses default printer if empty
-        }, (success, failureReason) => {
+        printWin.webContents.print(printOptions, (success, failureReason) => {
             if (!success) console.error('Print failed:', failureReason);
             printWin.close();
         });
@@ -115,6 +152,76 @@ ipcMain.on('print-receipt', (event, html) => {
 });
 
 
+
+// Persistent safeStorage Token Handlers
+const { safeStorage } = require('electron');
+const fs = require('fs');
+const tokenPath = path.join(app.getPath('userData'), 'session.bin');
+const itemsCachePath = path.join(app.getPath('userData'), 'items_cache.json');
+const pendingSalesPath = path.join(app.getPath('userData'), 'pending_sales.json');
+
+ipcMain.handle('set-auth-token', (_, token) => {
+    if (!safeStorage.isEncryptionAvailable()) return;
+    const encrypted = safeStorage.encryptString(token);
+    fs.writeFileSync(tokenPath, encrypted);
+});
+
+ipcMain.handle('get-auth-token', () => {
+    if (!fs.existsSync(tokenPath)) return '';
+    if (!safeStorage.isEncryptionAvailable()) return '';
+    const encrypted = fs.readFileSync(tokenPath);
+    try {
+        return safeStorage.decryptString(encrypted);
+    } catch {
+        return '';
+    }
+});
+
+ipcMain.handle('delete-auth-token', () => {
+    if (fs.existsSync(tokenPath)) fs.unlinkSync(tokenPath);
+});
+
+ipcMain.handle('read-items-cache', () => {
+    if (!fs.existsSync(itemsCachePath)) return [];
+    try {
+        const raw = fs.readFileSync(itemsCachePath, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        console.error('Failed to read items cache:', e);
+        return [];
+    }
+});
+
+ipcMain.handle('write-items-cache', (_, data) => {
+    try {
+        fs.writeFileSync(itemsCachePath, JSON.stringify(data, null, 2), 'utf8');
+        return true;
+    } catch (e) {
+        console.error('Failed to write items cache:', e);
+        return false;
+    }
+});
+
+ipcMain.handle('read-pending-sales', () => {
+    if (!fs.existsSync(pendingSalesPath)) return [];
+    try {
+        const raw = fs.readFileSync(pendingSalesPath, 'utf8');
+        return JSON.parse(raw);
+    } catch (e) {
+        console.error('Failed to read pending sales:', e);
+        return [];
+    }
+});
+
+ipcMain.handle('write-pending-sales', (_, data) => {
+    try {
+        fs.writeFileSync(pendingSalesPath, JSON.stringify(data, null, 2), 'utf8');
+        return true;
+    } catch (e) {
+        console.error('Failed to write pending sales:', e);
+        return false;
+    }
+});
 
 // Handle System Time Change
 ipcMain.handle('set-system-time', async (_event, datetime) => {
@@ -140,8 +247,48 @@ ipcMain.handle('set-system-time', async (_event, datetime) => {
         });
     });
 });
+const ThermalPrinter = require('node-thermal-printer').printer;
+const PrinterTypes = require('node-thermal-printer').types;
+
+ipcMain.handle('print-thermal-label', async (event, data) => {
+    try {
+        const printer = new ThermalPrinter({
+            type: PrinterTypes.XPRINTER,           // Best for XP-410B
+            interface: `win32://${data.printerName || 'XP-410B'}`,
+            characterSet: 'ISO8859_1',
+            removeSpecialCharacters: false,
+            lineCharacter: "-",
+        });
+
+        printer.alignCenter();
+        printer.setTypeFontA();
+        printer.println("FASHION SHAA");
+        printer.println(data.sku || "");
+
+        if (data.name) {
+            printer.println(data.name.substring(0, 25));
+        }
+
+        // Print Barcode
+        if (data.barcode) {
+            printer.printBarcode(data.barcode, "CODE128", { height: 60, width: 2 });
+        }
+
+        printer.println(`Rs. ${Number(data.price || 0).toLocaleString('en-LK')}`);
+        printer.cut();
+        printer.beep();
+
+        const result = await printer.execute();
+        return { success: true, message: "Printed successfully" };
+
+    } catch (error) {
+        console.error("Thermal Print Error:", error);
+        return { success: false, error: error.message };
+    }
+});
 
 app.on('ready', () => {
+    startBackendServer();
     createWindow();
 
     app.on('activate', () => {

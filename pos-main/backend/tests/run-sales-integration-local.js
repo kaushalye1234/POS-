@@ -28,7 +28,7 @@ async function run() {
     await mongoose.disconnect();
 
     // Start backend server as child process with MONGO_URI pointing to DB
-    const env = { ...process.env, MONGO_URI: uri, PORT: '5002' };
+    const env = { ...process.env, MONGO_URI: uri, MONGO_CONNECTION_MODE: 'single', PORT: '5002' };
     const child = spawn(process.execPath, ['server.js'], { cwd: __dirname + '/../', env, stdio: ['ignore', 'pipe', 'pipe'] });
 
     child.stdout.setEncoding('utf8');
@@ -52,7 +52,7 @@ async function run() {
         const createResp = await fetch(`${base}/api/items`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ sku: 'TESTSKU_INT', name: 'Integration Item', price: 25, stockLevel: 5 })
+            body: JSON.stringify({ sku: 'TESTSKU_INT', name: 'Integration Item', price: 25, costPrice: 15, stockLevel: 5 })
         });
         if (!createResp.ok) throw new Error('Create item failed: ' + (await createResp.text()));
         console.log('Item created');

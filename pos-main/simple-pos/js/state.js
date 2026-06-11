@@ -1,4 +1,4 @@
-export const state = {
+npmexport const state = {
     testingMode: localStorage.getItem('pos_testing_mode') === 'true',
     enableKeyboardShortcuts: localStorage.getItem('enableKeyboardShortcuts') !== 'false',
     

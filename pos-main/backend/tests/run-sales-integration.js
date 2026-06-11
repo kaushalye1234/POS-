@@ -28,7 +28,7 @@ async function run() {
     console.log('Started in-memory MongoDB at', uri);
 
     // Start backend server as child process with MONGO_URI pointing to in-memory server
-    const env = { ...process.env, MONGO_URI: uri, PORT: '5001' };
+    const env = { ...process.env, MONGO_URI: uri, MONGO_CONNECTION_MODE: 'single', PORT: '5001' };
     const child = spawn(process.execPath, ['server.js'], { cwd: __dirname + '/../', env, stdio: ['ignore', 'pipe', 'pipe'] });
 
     child.stdout.setEncoding('utf8');
@@ -49,7 +49,7 @@ async function run() {
         const createResp = await fetch(`${base}/api/items`, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ sku: 'TESTSKU1', name: 'Test Item', price: 50, stockLevel: 10 })
+            body: JSON.stringify({ sku: 'TESTSKU1', name: 'Test Item', price: 50, costPrice: 30, stockLevel: 10 })
         });
         if (!createResp.ok) throw new Error('Create item failed: ' + (await createResp.text()));
         console.log('Item created');

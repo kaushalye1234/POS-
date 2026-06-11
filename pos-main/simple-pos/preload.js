@@ -5,7 +5,16 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld(
     'electronAPI', {
     printReceipt: (html) => ipcRenderer.send('print-receipt', html),
-    setSystemTime: (datetime) => ipcRenderer.invoke('set-system-time', datetime)
+    printThermalLabel: (data) => ipcRenderer.invoke('print-thermal-label', data),
+    getPrinters: () => ipcRenderer.invoke('get-printers'),
+    setSystemTime: (datetime) => ipcRenderer.invoke('set-system-time', datetime),
+    setAuthToken: (token) => ipcRenderer.invoke('set-auth-token', token),
+    getAuthToken: () => ipcRenderer.invoke('get-auth-token'),
+    deleteAuthToken: () => ipcRenderer.invoke('delete-auth-token'),
+    readItemsCache: () => ipcRenderer.invoke('read-items-cache'),
+    writeItemsCache: (data) => ipcRenderer.invoke('write-items-cache', data),
+    readPendingSales: () => ipcRenderer.invoke('read-pending-sales'),
+    writePendingSales: (data) => ipcRenderer.invoke('write-pending-sales', data)
 }
 );
 

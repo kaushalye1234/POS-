@@ -1,0 +1,107 @@
+From cfefbb2961c06d846c86ffec6f719ddb388479cd Mon Sep 17 00:00:00 2001
+From: it24102519 <it24102519@my.sliit.lk>
+Date: Thu, 11 Jun 2026 13:02:54 +0530
+Subject: [PATCH] fix: printer size (80mm) and add unit price to receipt
+
+- Changed receipt paper width from 72mm to 80mm for standard thermal printers
+- Added unit price column to receipt (QTY | PRICE | TOTAL format)
+- Optimized grid layout for 80mm thermal paper
+- All prices properly formatted and XSS-escaped
+- Updated .gitignore to exclude dist artifacts and .7z files
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+---
+ pos-main/.gitignore               |  3 +++
+ pos-main/simple-pos/js/receipt.js | 22 ++++++++++++++--------
+ 2 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/pos-main/.gitignore b/pos-main/.gitignore
+index a9f1944..3b24561 100644
+--- a/pos-main/.gitignore
++++ b/pos-main/.gitignore
+@@ -31,3 +31,6 @@ npm-debug.log*
+ 
+ # Electron
+ *.asar
++
++*.7z
++dist/
+diff --git a/pos-main/simple-pos/js/receipt.js b/pos-main/simple-pos/js/receipt.js
+index 88fd2d0..1884289 100644
+--- a/pos-main/simple-pos/js/receipt.js
++++ b/pos-main/simple-pos/js/receipt.js
+@@ -74,13 +74,15 @@ function formatReceiptTimeValue(date) {
+ 
+ function buildReceiptItemLine(item) {
+     const quantity = Number(item.quantity || 0);
+-    const amount = Number(item.total ?? item.totalPrice ?? ((item.price || 0) * quantity));
++    const unitPrice = Number(item.price || 0);
++    const amount = Number(item.total ?? item.totalPrice ?? (unitPrice * quantity));
+     const itemName = item.name || item.itemName || 'Item';
+ 
+     return `
+         <div class="receipt-item-grid">
+             <span class="receipt-item-name">${escapeHtml(itemName)}</span>
+             <span class="receipt-item-qty">${escapeHtml(String(quantity))}</span>
++            <span class="receipt-item-price">${formatReceiptAmount(unitPrice)}</span>
+             <span class="receipt-item-amount">${formatReceiptAmount(amount)}</span>
+         </div>
+     `;
+@@ -126,9 +128,9 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
+                 .paper {
+                     background: white;
+                     box-sizing: border-box;
+-                    width: 72mm;
++                    width: 80mm;
+                     max-width: 300px;
+-                    padding: 20px;
++                    padding: 12px;
+                     margin: 0 auto;
+                     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                 }
+@@ -201,8 +203,8 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
+                 .receipt-items-header,
+                 .receipt-item-grid {
+                     display: grid;
+-                    grid-template-columns: minmax(0, 1fr) 42px 90px;
+-                    gap: 8px;
++                    grid-template-columns: minmax(0, 1fr) 35px 55px 65px;
++                    gap: 6px;
+                     align-items: flex-start;
+                 }
+                 .receipt-items-header {
+@@ -220,7 +222,10 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
+                 .receipt-items-header span:nth-child(2) {
+                     text-align: center;
+                 }
+-                .receipt-item-amount {
++                .receipt-item-price,
++                .receipt-item-amount,
++                .receipt-items-header span:nth-child(3),
++                .receipt-items-header span:nth-child(4) {
+                     text-align: right;
+                     white-space: nowrap;
+                 }
+@@ -245,9 +250,9 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
+                         margin: 0;
+                     }
+                     .paper {
+-                        width: 72mm;
++                        width: 80mm;
+                         max-width: none;
+-                        padding: 0 4mm 8mm;
++                        padding: 0 2mm 4mm;
+                         box-shadow: none;
+                         margin: 0;
+                     }
+@@ -278,6 +283,7 @@ export function generateReceiptHtml(items, totals, employeeId, receiptDiscountLa
+                     <div class="receipt-items-header">
+                         <span>ITEM</span>
+                         <span>QTY</span>
++                        <span>PRICE</span>
+                         <span>TOTAL</span>
+                     </div>
+                     ${itemsHtml}
+-- 
+2.45.1.windows.1
+

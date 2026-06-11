@@ -12,3 +12,8 @@ Thumbs.db
 
 # Environment files
 .env
+
+# Archives / packaged builds
+*.7z
+*.zip
+*.rar

@@ -44,12 +44,50 @@ async function createIndexes() {
     }
 }
 
+async function ensureSaleDateTime() {
+    const Sale = require('../models/Sale');
+    const cursor = Sale.find({ $or: [ { saleDateTime: { $exists: false } }, { saleDateTime: null } ] }).cursor();
+    let updated = 0;
+    for (let doc = await cursor.next(); doc != null; doc = await cursor.next()) {
+        try {
+            let saleDateTime = null;
+            // 1. Try parsing saleDate + saleTime
+            if (doc.saleDate) {
+                const parsed = new Date(`${doc.saleDate}T${doc.saleTime || '00:00:00'}`);
+                if (!isNaN(parsed.getTime())) saleDateTime = parsed;
+            }
+            // 2. Try createdAt
+            if (!saleDateTime && doc.createdAt && !isNaN(new Date(doc.createdAt).getTime())) {
+                saleDateTime = new Date(doc.createdAt);
+            }
+            // 3. Recover from MongoDB ObjectId
+            if (!saleDateTime && doc._id && typeof doc._id.getTimestamp === 'function') {
+                const idDate = doc._id.getTimestamp();
+                if (!isNaN(idDate.getTime())) saleDateTime = idDate;
+            }
+            // 4. Fallback to current time
+            if (!saleDateTime) {
+                saleDateTime = new Date();
+            }
+
+            doc.saleDateTime = saleDateTime;
+            await doc.save();
+            updated++;
+        } catch (e) {
+            console.error('Failed to migrate date for sale id', doc._id, e.message);
+        }
+    }
+    return updated;
+}
+
 async function run() {
     const connection = await connectMongo(mongoose, { maxPoolSize: 10 });
     console.log(`Connecting to ${redactMongoUri(connection.uri)} (${connection.source})`);
     try {
         const updated = await ensureSkuForItems();
         console.log('Items updated with SKUs:', updated);
+        const migratedSales = await ensureSaleDateTime();
+        console.log('Sales migrated with native Date field:', migratedSales);
         await createIndexes();
     } catch (e) {
         console.error('Migration failed', e);

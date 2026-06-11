@@ -58,7 +58,6 @@
       "output": "dist"
     }
   },
-
   "dependencies": {
     "7zip-bin": "^5.2.0",
     "abbrev": "^3.0.1",
@@ -243,6 +242,7 @@
     "node-abi": "^4.24.0",
     "node-api-version": "^0.2.1",
     "node-gyp": "^11.5.0",
+    "node-thermal-printer": "^4.6.0",
     "nopt": "^8.1.0",
     "normalize-path": "^3.0.0",
     "normalize-url": "^6.1.0",
@@ -260,6 +260,7 @@
     "path-key": "^3.1.1",
     "path-parse": "^1.0.7",
     "path-scurry": "^1.11.1",
+    "pdf-to-printer": "^5.8.0",
     "pe-library": "^0.4.1",
     "pend": "^1.2.0",
     "picocolors": "^1.1.1",

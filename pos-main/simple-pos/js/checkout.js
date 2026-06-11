@@ -119,7 +119,70 @@ export async function printReceiptAndSave(employeeIdRaw, customerIdRaw, customer
             }
         } catch (err) {
             console.error('Failed to save sale:', err);
-            // BACK-003: Graceful failure
+            
+            // Check for No Stock error
+            if (err.error === 'No Stock' || (err.message && err.message.includes('No Stock'))) {
+                const details = err.details || [];
+                let msg = '⚠️ OUT OF STOCK WARNING\n\nThe following items do not have enough stock to complete this sale:\n\n';
+                details.forEach(d => {
+                    msg += `- ${d.itemName || d.sku} (SKU: ${d.sku}): Requested ${d.requested}, Available ${d.available}\n`;
+                });
+                msg += '\nWould you like an Admin/Manager to perform a Quick Restock?';
+                
+                if (confirm(msg)) {
+                    // Try to request admin override via PIN
+                    let pin = '';
+                    if (window.requestAdminOverride) {
+                        try {
+                            const success = await window.requestAdminOverride('Admin/Manager PIN required to authorize Quick Restock.');
+                            if (success) {
+                                pin = prompt('Enter Admin/Manager PIN to confirm Quick Restock:');
+                            }
+                        } catch (pinErr) {
+                            console.error('Admin override failed:', pinErr);
+                        }
+                    } else {
+                        pin = prompt('Enter Admin/Manager PIN to authorize Quick Restock:');
+                    }
+                    
+                    if (pin) {
+                        try {
+                            // Restock each out-of-stock item
+                            for (const d of details) {
+                                const missing = d.requested - d.available;
+                                if (navigator.onLine) {
+                                    if (window.POS_API && window.POS_API.quickRestockItem) {
+                                        await window.POS_API.quickRestockItem(d.sku, pin, missing);
+                                    } else {
+                                        throw new Error('POS_API.quickRestockItem is unavailable.');
+                                    }
+                                } else {
+                                    // Offline quick-restock: update items_cache.json locally
+                                    const cachedItems = await window.electronAPI.readItemsCache();
+                                    const item = cachedItems.find(i => i.sku === d.sku);
+                                    if (item) {
+                                        item.stockLevel = (item.stockLevel || 0) + missing;
+                                        await window.electronAPI.writeItemsCache(cachedItems);
+                                    }
+                                }
+                            }
+                            alert('Quick Restock completed successfully! Retrying checkout...');
+                            // Retry saving the sale
+                            return await printReceiptAndSave(employeeIdRaw, customerIdRaw, customerNameRaw, amountReceivedStr);
+                        } catch (restockErr) {
+                            alert('Restock failed: ' + (restockErr.message || restockErr));
+                            return false;
+                        }
+                    }
+                }
+                return false;
+            } else if (err.error === 'Discount Limit Exceeded' || (err.message && err.message.includes('Discount Limit Exceeded'))) {
+                alert('Checkout Rejected: ' + (err.message || 'Discount violates store profitability protection limits.'));
+                return false;
+            } else {
+                alert('Checkout Failed: ' + (err.message || err));
+                return false;
+            }
         }
     }
 

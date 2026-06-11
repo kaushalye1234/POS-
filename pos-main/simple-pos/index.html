@@ -427,10 +427,6 @@
                     <span class="sidebar-nav-icon material-symbols-outlined">dashboard</span>
                     <span class="sidebar-reveal text-sm font-medium">Dashboard</span>
                 </a>
-                <a href="items.html" id="navInventory" class="sidebar-nav-link" title="Inventory">
-                    <span class="sidebar-nav-icon material-symbols-outlined">inventory_2</span>
-                    <span class="sidebar-reveal text-sm font-medium">Inventory</span>
-                </a>
             </nav>
 
             <div class="sidebar-meta-stack">
@@ -731,10 +727,8 @@
             // RBAC: Hide nav menus if cashier
             if (user.role === 'cashier') {
                 document.getElementById('navDashboard').style.display = 'none';
-                document.getElementById('navInventory').style.display = 'none';
             } else {
                 document.getElementById('navDashboard').style.display = 'flex';
-                document.getElementById('navInventory').style.display = 'flex';
             }
         }
     }

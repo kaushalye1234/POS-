@@ -59,6 +59,12 @@ const saleSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    saleDateTime: {
+        type: Date,
+        required: true,
+        default: Date.now,
+        index: true
+    },
     customerId: {
         type: String,
         default: null,

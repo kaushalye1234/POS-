@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="description" content="Fashion Shaa Corporate POS System - Item Viewer">
+    <meta property="og:title" content="Fashion Shaa POS - View Item">
+    <meta property="og:description" content="Fashion Shaa Corporate POS System - Item Viewer">
+    <meta property="og:type" content="website">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' http://localhost:* http://127.0.0.1:* https:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'self'"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Fashion Shaa - Product Audit Trail</title>
+    <link rel="stylesheet" href="output.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <style>
+        .glass {
+            background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .bg-gradient-mesh {
+            background-color: #0f172a;
+            background-image: radial-gradient(at 0% 0%, rgba(220, 38, 38, 0.1) 0px, transparent 50%),
+                              radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.05) 0px, transparent 50%);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen bg-gradient-mesh">
+    <div class="max-w-[1400px] mx-auto px-6 py-8">
+        
+        <!-- Header Section -->
+        <header class="glass rounded-xl px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4 mb-8 shadow-2xl">
+            <div class="flex items-center gap-3">
+                <div class="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+                    <span class="material-symbols-outlined text-white text-2xl">grid_view</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight italic uppercase leading-none">
+                        FASHION <span class="text-primary">SHAA</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-1">Stock & Admin Console</p>
+                </div>
+            </div>
+            
+            <nav class="flex items-center gap-2">
+                <a href="items.html" class="px-5 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-bold text-sm transition-all flex items-center gap-1.5 border border-slate-700">
+                    <span class="material-symbols-outlined text-sm">arrow_back</span>
+                    <span>Back to Inventory</span>
+                </a>
+            </nav>
+        </header>
+
+        <!-- Main Workspace Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-8">
+            
+            <!-- Left Side: Product Profile Summary -->
+            <aside class="flex flex-col gap-6">
+                <div class="glass p-6 rounded-2xl shadow-xl flex flex-col gap-5">
+                    <div class="relative w-full aspect-video rounded-xl bg-slate-950/40 overflow-hidden border border-white/5 flex items-center justify-center">
+                        <img id="detailImage" class="w-full h-full object-cover hidden" alt="Product Image" />
+                        <span id="detailNoImage" class="text-slate-500 italic text-sm">No image attached</span>
+                    </div>
+
+                    <div>
+                        <span id="detailSkuBadge" class="inline-block bg-primary/10 border border-primary/20 text-primary px-3 py-1 rounded text-xs font-bold font-mono">SKU</span>
+                        <h2 id="detailProductName" class="text-2xl font-black text-white tracking-tight mt-2 leading-tight">Product Details</h2>
+                        <p id="detailCategory" class="text-xs text-slate-500 font-bold mt-1 uppercase tracking-wider">Category</p>
+                    </div>
+
+                    <!-- Metrics Details -->
+                    <div class="grid grid-cols-2 gap-4 border-t border-b border-white/10 py-4 text-xs">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-slate-500 font-bold uppercase tracking-wider">Selling Price</span>
+                            <span id="detailPrice" class="text-white font-bold text-base">Rs. 0.00</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-slate-500 font-bold uppercase tracking-wider">Cost Price</span>
+                            <span id="detailCostPrice" class="text-white font-bold text-base">Rs. 0.00</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-slate-500 font-bold uppercase tracking-wider">Gross Profit</span>
+                            <span id="detailProfit" class="text-white font-bold text-base">Rs. 0.00</span>
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-slate-500 font-bold uppercase tracking-wider">Net Profit Margin</span>
+                            <span id="detailMargin" class="text-white font-bold text-base">0.00%</span>
+                        </div>
+                    </div>
+
+                    <!-- Stock alert constraints -->
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center bg-slate-950/20 px-4 py-3 rounded-xl border border-white/5">
+                            <span class="text-sm font-semibold text-slate-400">Current Stock</span>
+                            <span id="detailStockLevel" class="text-base font-bold text-white">0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs px-2 text-slate-500">
+                            <span>Low Threshold: <span id="detailLowThresh">10</span></span>
+                            <span>Critical Level: <span id="detailCritThresh">3</span></span>
+                        </div>
+                    </div>
+
+                    <!-- Barcode graphics section -->
+                    <div id="detailBarcodeSection" class="bg-slate-950/40 p-4 rounded-xl border border-white/5 flex flex-col gap-2 text-center">
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Barcode / UPC</span>
+                        <div id="detailBarcodeImage" class="flex justify-center my-1"></div>
+                        <span id="detailBarcodeText" class="text-xs font-semibold font-mono text-slate-300">FS-xxxxx</span>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex gap-3 pt-2">
+                        <button id="editProductBtn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold py-3 rounded-xl text-sm flex items-center justify-center gap-1.5">
+                            <span class="material-symbols-outlined text-sm">edit</span>
+                            Edit Product
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right Side: Recent Transactions Audit Log -->
+            <main class="flex flex-col gap-6">
+                <div class="glass p-6 rounded-2xl shadow-xl flex flex-col gap-6">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                                <span class="material-symbols-outlined text-primary">history</span> Transaction Audit Log
+                            </h2>
+                            <p class="text-xs text-slate-400 font-medium mt-1">Audit log of all stock adjustments, sales, and restocks for this SKU</p>
+                        </div>
+                    </div>
+
+                    <!-- Table Container -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="bg-black/20 text-slate-400 text-xs uppercase tracking-wider font-semibold border-b border-slate-700/50">
+                                    <th class="px-6 py-4">Date/Time</th>
+                                    <th class="px-6 py-4">Source</th>
+                                    <th class="px-6 py-4 text-center">Change</th>
+                                    <th class="px-6 py-4 text-center">Quantity</th>
+                                    <th class="px-6 py-4">Recorded Price</th>
+                                    <th class="px-6 py-4">Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactionTableBody" class="divide-y divide-white/5">
+                                <tr>
+                                    <td colspan="6" class="text-center p-10 text-slate-500 italic">No transactions found for this product.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="database.js"></script>
+    <script src="auth-gate.js"></script>
+    <script src="view-item.js"></script>
+</body>
+</html>

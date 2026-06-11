@@ -231,12 +231,25 @@ if (typeof window !== 'undefined') {
 // JWT Authentication Functions
 // ============================================
 
+let cachedAuthToken = '';
+
+// Load token asynchronously from secure Electron storage on startup
+if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.getAuthToken === 'function') {
+    window.electronAPI.getAuthToken().then(token => {
+        cachedAuthToken = token || '';
+    }).catch(err => console.error('Failed to load secure token on startup:', err));
+}
+
 function getAuthToken() {
-    return localStorage.getItem(AUTH_TOKEN_KEY);
+    return cachedAuthToken || localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
 function setAuthToken(token) {
-    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    cachedAuthToken = token || '';
+    localStorage.setItem(AUTH_TOKEN_KEY, cachedAuthToken);
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.setAuthToken === 'function') {
+        window.electronAPI.setAuthToken(cachedAuthToken).catch(err => console.error('Failed to save secure token:', err));
+    }
 }
 
 function getAuthUser() {
@@ -297,8 +310,12 @@ async function registerUser(username, password, role = 'cashier', employeeId = n
 }
 
 function logoutUser() {
+    cachedAuthToken = '';
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
+    if (typeof window !== 'undefined' && window.electronAPI && typeof window.electronAPI.deleteAuthToken === 'function') {
+        window.electronAPI.deleteAuthToken().catch(err => console.error('Failed to delete secure token:', err));
+    }
     // Redirect to login if a login page exists
     if (typeof showLoginScreen === 'function') {
         showLoginScreen();
@@ -350,6 +367,23 @@ async function fetchAPI(endpoint, options = {}) {
         }
 
         const apiOrigin = await resolveApiOrigin();
+
+        // If offline and querying items, use local cache
+        if (!navigator.onLine) {
+            if (endpoint === '/items') {
+                return await window.electronAPI.readItemsCache();
+            }
+            if (endpoint.startsWith('/items/')) {
+                const sku = decodeURIComponent(endpoint.slice(7));
+                const cachedItems = await window.electronAPI.readItemsCache();
+                const item = cachedItems.find(i => i.sku === sku);
+                if (!item) throw new Error(`Item with SKU ${sku} not found in local cache.`);
+                return item;
+            }
+            // For other endpoints, throw offline error
+            throw new Error('Connection is offline');
+        }
+
         const response = await fetch(`${apiOrigin}/api${endpoint}`, options);
 
         // Handle 401 — token expired or invalid
@@ -362,24 +396,170 @@ async function fetchAPI(endpoint, options = {}) {
 
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
-            throw new Error(`API Error: ${err.error || response.statusText}`);
+            const apiErr = new Error(`API Error: ${err.error || response.statusText}`);
+            apiErr.error = err.error || response.statusText;
+            apiErr.details = err.details || null;
+            throw apiErr;
         }
         return await response.json();
     } catch (e) {
         console.error(`API Error on ${endpoint}:`, e);
+        // Fallback for network errors (unreachable server) when fetching items
+        if (endpoint === '/items' || endpoint.startsWith('/items/')) {
+            try {
+                if (endpoint === '/items') {
+                    return await window.electronAPI.readItemsCache();
+                }
+                const sku = decodeURIComponent(endpoint.slice(7));
+                const cachedItems = await window.electronAPI.readItemsCache();
+                const item = cachedItems.find(i => i.sku === sku);
+                if (item) return item;
+            } catch (cacheErr) {
+                console.error('Failed to read from local cache fallback:', cacheErr);
+            }
+        }
         throw e;
     }
 }
 
 if (typeof window !== 'undefined') {
-    Object.assign(window.POS_API, { fetchAPI });
+    Object.assign(window.POS_API, { 
+        fetchAPI,
+        isOnline: () => navigator.onLine,
+        quickRestockItem: (sku, adminPin, quantity) => quickRestockItem(sku, adminPin, quantity),
+        syncOfflineData: () => syncOfflineData()
+    });
 }
 
 let db = true; // Mock db reference so app.js "if(db)" checks pass
 
+function isOnline() {
+    return navigator.onLine;
+}
+
+function quickRestockItem(sku, adminPin, quantity) {
+    return fetchAPI(`/items/${encodeURIComponent(sku)}/quick-restock`, {
+        method: 'POST',
+        body: { adminPin, quantity }
+    });
+}
+
+async function saveSaleOffline(sale) {
+    const cachedItems = await window.electronAPI.readItemsCache();
+    const outOfStock = [];
+    
+    for (const item of sale.items) {
+        if (item.sku) {
+            const cachedItem = cachedItems.find(i => i.sku === item.sku);
+            if (!cachedItem || (cachedItem.stockLevel || 0) < item.quantity) {
+                outOfStock.push({
+                    sku: item.sku,
+                    itemName: item.itemName,
+                    requested: item.quantity,
+                    available: cachedItem ? (cachedItem.stockLevel || 0) : 0
+                });
+            }
+        }
+    }
+
+    if (outOfStock.length > 0) {
+        const error = new Error('No Stock');
+        error.error = 'No Stock';
+        error.details = outOfStock;
+        throw error;
+    }
+
+    // Decrement inventory in local cache
+    for (const item of sale.items) {
+        if (item.sku) {
+            const cachedItem = cachedItems.find(i => i.sku === item.sku);
+            if (cachedItem) {
+                cachedItem.stockLevel = Math.max(0, (cachedItem.stockLevel || 0) - item.quantity);
+            }
+        }
+    }
+    await window.electronAPI.writeItemsCache(cachedItems);
+
+    // Save sale to pending sales queue
+    const offlineId = 'OFFLINE-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const saleRecord = {
+        ...sale,
+        _id: offlineId,
+        id: offlineId,
+        isOffline: true
+    };
+
+    const pendingSales = await window.electronAPI.readPendingSales();
+    pendingSales.push(saleRecord);
+    await window.electronAPI.writePendingSales(pendingSales);
+
+    return saleRecord;
+}
+
+async function syncOfflineData() {
+    if (!navigator.onLine) {
+        console.log('Sync skipped: offline.');
+        return { success: false, reason: 'offline' };
+    }
+
+    console.log('Starting offline data sync...');
+    try {
+        // 1. Sync pending sales
+        const pendingSales = await window.electronAPI.readPendingSales();
+        if (pendingSales && pendingSales.length > 0) {
+            console.log(`Found ${pendingSales.length} pending sales to sync.`);
+            const successfulIds = [];
+            for (const sale of pendingSales) {
+                try {
+                    const { isOffline, offlineId, _id, id, ...cleanSale } = sale;
+                    await fetchAPI('/sales', { method: 'POST', body: cleanSale });
+                    successfulIds.push(sale._id || sale.id);
+                } catch (e) {
+                    console.error('Failed to sync sale:', sale, e);
+                    if (e.message && (e.message.includes('fetch') || e.message.includes('NetworkError') || e.message.includes('Failed to fetch'))) {
+                        break; // Stop syncing remaining ones on network issue
+                    }
+                }
+            }
+
+            if (successfulIds.length > 0) {
+                const remainingSales = pendingSales.filter(s => !successfulIds.includes(s._id || s.id));
+                await window.electronAPI.writePendingSales(remainingSales);
+                console.log(`Synced ${successfulIds.length} sales successfully. ${remainingSales.length} remaining.`);
+            }
+        }
+
+        // 2. Download remote items catalog and refresh cache
+        const remoteItems = await fetchAPI('/items');
+        if (Array.isArray(remoteItems)) {
+            await window.electronAPI.writeItemsCache(remoteItems);
+            console.log(`Refreshed local items cache with ${remoteItems.length} items.`);
+        }
+
+        return { success: true, syncedSalesCount: pendingSales.length };
+    } catch (err) {
+        console.error('Sync failed:', err);
+        return { success: false, reason: err.message };
+    }
+}
+
 async function initDatabase() {
     const apiOrigin = await resolveApiOrigin();
     console.log(`MongoDB API connected via database.js wrapper. (${apiOrigin})`);
+    
+    // Trigger offline data sync in background on launch
+    if (typeof window !== 'undefined' && window.electronAPI) {
+        syncOfflineData().then(res => {
+            if (res && res.success) {
+                console.log('Background startup sync completed.');
+            }
+        }).catch(err => console.error('Startup sync failed:', err));
+        
+        // Setup recurring sync interval (every 60 seconds)
+        window.setInterval(() => {
+            syncOfflineData().catch(err => console.error('Background sync failed:', err));
+        }, 60000);
+    }
     return Promise.resolve();
 }
 
@@ -416,7 +596,19 @@ async function saveSale(employeeId, totalAmount, amountReceived, changeAmount, i
         }))
     };
 
-    return await fetchAPI('/sales', { method: 'POST', body: sale });
+    if (!navigator.onLine) {
+        return await saveSaleOffline(sale);
+    }
+
+    try {
+        return await fetchAPI('/sales', { method: 'POST', body: sale });
+    } catch (err) {
+        if (err.message && (err.message.includes('fetch') || err.message.includes('NetworkError') || err.message.includes('Failed to fetch') || err.message.includes('Failed to connect') || err.message.includes('ENOTFOUND') || err.message.includes('ECONNREFUSED'))) {
+            console.warn('Network issue detected during saveSale, fallback to offline mode');
+            return await saveSaleOffline(sale);
+        }
+        throw err;
+    }
 }
 
 async function getAllSales(dateFilter) {

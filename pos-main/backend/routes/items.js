@@ -70,6 +70,17 @@ router.get('/:sku', async (req, res, next) => {
     }
 });
 
+// GET single item transactions / audit trail
+router.get('/:sku/transactions', async (req, res, next) => {
+    try {
+        const InventoryTransaction = require('../models/InventoryTransaction');
+        const transactions = await InventoryTransaction.find({ sku: req.params.sku }).sort({ createdAt: -1 });
+        res.json(transactions);
+    } catch (err) {
+        next(err);
+    }
+});
+
 // POST new item (handles Auto-Generated SKUs or explicit SKUs)
 router.post('/', async (req, res, next) => {
     try {
@@ -127,6 +138,55 @@ router.delete('/:sku', async (req, res, next) => {
         const deleted = await Item.findOneAndDelete({ sku: req.params.sku });
         if (!deleted) return res.status(404).json({ error: 'Item not found' });
         res.json({ message: 'Item deleted successfully' });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST quick restock with admin PIN validation
+router.post('/:sku/quick-restock', async (req, res, next) => {
+    try {
+        const { adminPin, quantity } = req.body;
+
+        if (!adminPin) {
+            return res.status(400).json({ error: 'Admin PIN is required for quick restock.' });
+        }
+
+        const qty = Number(quantity);
+        if (isNaN(qty) || qty <= 0) {
+            return res.status(400).json({ error: 'Restock quantity must be a positive number.' });
+        }
+
+        // Find all active admins/managers
+        const User = require('../models/User');
+        const admins = await User.find({ role: { $in: ['admin', 'manager'] }, isActive: true });
+        
+        let pinValid = false;
+        for (const admin of admins) {
+            if (await admin.comparePin(String(adminPin))) {
+                pinValid = true;
+                break;
+            }
+        }
+
+        if (!pinValid) {
+            return res.status(403).json({ error: 'Invalid Admin/Manager PIN.' });
+        }
+
+        const updatedItem = await Item.findOneAndUpdate(
+            { sku: req.params.sku },
+            { $inc: { stockLevel: qty } },
+            { returnDocument: 'after' }
+        );
+
+        if (!updatedItem) {
+            return res.status(404).json({ error: 'Item not found.' });
+        }
+
+        res.json({
+            message: 'Stock updated successfully.',
+            item: updatedItem
+        });
     } catch (err) {
         next(err);
     }
