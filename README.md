@@ -233,3 +233,5 @@ Restore uses `mongorestore --drop` and can overwrite existing data. Test recover
 ## Author
 
 Developed by **Chamindu Kaushalya**, a Software Engineering undergraduate at SLIIT, as a long-term practical project spanning retail software, backend engineering, testing, and operational reliability.
+
+- **LinkedIn:** [Chamindu Kaushalya](https://lnkd.in/p/gbiN_W8j)
